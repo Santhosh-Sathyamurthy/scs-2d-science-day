@@ -2,7 +2,6 @@
 
 dbasic::AudioAsset::AudioAsset() {
     m_buffer = nullptr;
-    m_volume = 1.0f;
 }
 
 dbasic::AudioAsset::~AudioAsset() {

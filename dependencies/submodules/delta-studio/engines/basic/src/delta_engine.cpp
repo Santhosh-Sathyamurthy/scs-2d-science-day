@@ -72,10 +72,6 @@ dbasic::DeltaEngine::DeltaEngine() {
 
     m_cursorHidden = false;
     m_cursorPositionLocked = false;
-
-    m_objectDataBufferOffset = 0;
-    m_objectDataBuffer = nullptr;
-    m_objectDataBufferSize = 0;
 }
 
 dbasic::DeltaEngine::~DeltaEngine() {
@@ -105,7 +101,6 @@ dbasic::DeltaEngine::~DeltaEngine() {
     assert(m_consoleShaderObjectVariablesBuffer == nullptr);
 
     delete[] m_drawQueue;
-    if (m_objectDataBuffer != nullptr) { delete[] m_objectDataBuffer; }
 }
 
 ysError
@@ -149,10 +144,10 @@ dbasic::DeltaEngine::CreateGameWindow(const GameEngineSettings &settings) {
     // Create the audio device
     YDS_NESTED_ERROR_CALL(ysAudioSystem::CreateAudioSystem(
             &m_audioSystem, ysAudioSystem::API::DirectSound8));
-    m_audioDevice = nullptr;
-    if (m_audioSystem->EnumerateDevices() == ysError::None) {
-        m_audioSystem->ConnectDevice(m_gameWindow, &m_audioDevice);
-    }
+    YDS_NESTED_ERROR_CALL(m_audioSystem->EnumerateDevices());
+
+    YDS_NESTED_ERROR_CALL(
+            m_audioSystem->ConnectDevice(m_gameWindow, &m_audioDevice));
 
     // Create the rendering context
     YDS_NESTED_ERROR_CALL(m_device->CreateRenderingContext(&m_renderingContext,
@@ -206,7 +201,7 @@ ysError dbasic::DeltaEngine::StartFrame() {
     m_breakdownTimer.StartFrame();
     m_breakdownTimer.StartMeasurement(FrameBreakdownFull);
 
-    if (m_audioDevice != nullptr) { m_audioDevice->UpdateAudioSources(); }
+    m_audioDevice->UpdateAudioSources();
     m_windowSystem->ProcessMessages();
     m_timingSystem->Update();
 
@@ -296,9 +291,7 @@ ysError dbasic::DeltaEngine::Destroy() {
 
     YDS_NESTED_ERROR_CALL(m_device->DestroyDevice());
 
-    if (m_audioDevice != nullptr) {
-        m_audioSystem->DisconnectDevice(m_audioDevice);
-    }
+    m_audioSystem->DisconnectDevice(m_audioDevice);
     ysAudioSystem::DestroyAudioSystem(&m_audioSystem);
 
     m_audioDevice = nullptr;
@@ -347,27 +340,11 @@ dbasic::DeltaEngine::DrawCall *
 dbasic::DeltaEngine::NewDrawCall(int layer, int objectDataSize) {
     DrawCall *newCall = &m_drawQueue[layer].New();
     if (newCall != nullptr) {
-        newCall->ObjectDataOffset = AllocateObjectData(objectDataSize);
+        newCall->ObjectData = malloc(objectDataSize);
         newCall->ObjectDataSize = objectDataSize;
     }
 
     return newCall;
-}
-
-size_t dbasic::DeltaEngine::AllocateObjectData(int objectDataSize) {
-    if ((m_objectDataBufferOffset + objectDataSize) > m_objectDataBufferSize) {
-        const size_t newSize = m_objectDataBufferSize + objectDataSize + 2048;
-        char *newBuffer = new char[newSize];
-        memcpy(newBuffer, m_objectDataBuffer, m_objectDataBufferSize);
-        if (m_objectDataBuffer != nullptr) { delete[] m_objectDataBuffer; }
-        m_objectDataBuffer = newBuffer;
-        m_objectDataBufferSize = newSize;
-    }
-
-    const size_t offset = m_objectDataBufferOffset;
-    m_objectDataBufferOffset += objectDataSize;
-
-    return offset;
 }
 
 ysError dbasic::DeltaEngine::InitializeGeometry() {
@@ -643,45 +620,8 @@ ysError dbasic::DeltaEngine::LoadFont(Font **font, const wchar_t *path,
     return YDS_ERROR_RETURN(ysError::None);
 }
 
-ysError dbasic::DeltaEngine::UpdateAudioDeviceStates() {
-    YDS_ERROR_DECLARE("UpdateAudioDeviceStates");
-    YDS_NESTED_ERROR_CALL(m_audioSystem->UpdateDeviceStates());
-    return YDS_ERROR_RETURN(ysError::None);
-}
-
-ysError dbasic::DeltaEngine::UpdatePrimaryDevice() {
-    YDS_ERROR_DECLARE("UpdatePrimaryDevice");
-    ysAudioDevice *old = m_audioDevice;
-    if (m_audioDevice != nullptr &&
-        m_audioSystem->GetPrimaryDevice() != m_audioDevice) {
-        m_audioDevice = nullptr;
-    }
-
-    if (m_audioDevice == nullptr) {
-        m_audioSystem->ConnectDevice(m_gameWindow, &m_audioDevice);
-    }
-
-    return YDS_ERROR_RETURN(ysError::None);
-}
-
-ysError dbasic::DeltaEngine::FreeUnusedAudioDevices() {
-    YDS_ERROR_DECLARE("UpdatePrimaryDevice");
-    for (int i = 0; i < m_audioSystem->GetDeviceCount(); ++i) {
-        ysAudioDevice *device = m_audioSystem->GetDevice(i);
-        if (device != nullptr && device != m_audioDevice &&
-            device->IsConnected() && !device->InUse()) {
-            YDS_NESTED_ERROR_CALL(m_audioSystem->DisconnectDevice(device));
-        }
-    }
-    return YDS_ERROR_RETURN(ysError::None);
-}
-
 ysError dbasic::DeltaEngine::PlayAudio(AudioAsset *audio) {
     YDS_ERROR_DECLARE("PlayAudio");
-
-    if (m_audioDevice == nullptr) {
-        return YDS_ERROR_RETURN(ysError::NoAudioDevice);
-    }
 
     ysAudioSource *newSource = nullptr;
     YDS_NESTED_ERROR_CALL(
@@ -834,8 +774,7 @@ ysError dbasic::DeltaEngine::DrawSaq(StageEnableFlags flags) {
     DrawCall *newCall = NewDrawCall(0, m_shaderSet->GetObjectDataSize());
     if (newCall != nullptr) {
         YDS_NESTED_ERROR_CALL(m_shaderSet->CacheObjectData(
-                m_objectDataBuffer + newCall->ObjectDataOffset,
-                m_shaderSet->GetObjectDataSize()));
+                newCall->ObjectData, m_shaderSet->GetObjectDataSize()));
         newCall->Flags = flags;
         newCall->DepthTest = false;
     }
@@ -850,8 +789,7 @@ ysError dbasic::DeltaEngine::DrawImage(StageEnableFlags flags, ysTexture *image,
     DrawCall *newCall = NewDrawCall(layer, m_shaderSet->GetObjectDataSize());
     if (newCall != nullptr) {
         YDS_NESTED_ERROR_CALL(m_shaderSet->CacheObjectData(
-                m_objectDataBuffer + newCall->ObjectDataOffset,
-                m_shaderSet->GetObjectDataSize()));
+                newCall->ObjectData, m_shaderSet->GetObjectDataSize()));
         newCall->Flags = flags;
         newCall->DepthTest = false;
     }
@@ -865,8 +803,7 @@ ysError dbasic::DeltaEngine::DrawBox(StageEnableFlags flags, int layer) {
     DrawCall *newCall = NewDrawCall(layer, m_shaderSet->GetObjectDataSize());
     if (newCall != nullptr) {
         YDS_NESTED_ERROR_CALL(m_shaderSet->CacheObjectData(
-                m_objectDataBuffer + newCall->ObjectDataOffset,
-                m_shaderSet->GetObjectDataSize()));
+                newCall->ObjectData, m_shaderSet->GetObjectDataSize()));
         newCall->Flags = flags;
         newCall->DepthTest = false;
     }
@@ -938,8 +875,7 @@ ysError dbasic::DeltaEngine::DrawGeneric(
     DrawCall *newCall = NewDrawCall(layer, m_shaderSet->GetObjectDataSize());
     if (newCall != nullptr) {
         YDS_NESTED_ERROR_CALL(m_shaderSet->CacheObjectData(
-                m_objectDataBuffer + newCall->ObjectDataOffset,
-                m_shaderSet->GetObjectDataSize()));
+                newCall->ObjectData, m_shaderSet->GetObjectDataSize()));
         newCall->Shader = shader;
         newCall->InputLayout = inputLayout;
         newCall->VertexSize = vertexSize;
@@ -971,8 +907,7 @@ ysError dbasic::DeltaEngine::DrawGenericLines(StageEnableFlags flags,
     DrawCall *newCall = NewDrawCall(layer, m_shaderSet->GetObjectDataSize());
     if (newCall != nullptr) {
         YDS_NESTED_ERROR_CALL(m_shaderSet->CacheObjectData(
-                m_objectDataBuffer + newCall->ObjectDataOffset,
-                m_shaderSet->GetObjectDataSize()));
+                newCall->ObjectData, m_shaderSet->GetObjectDataSize()));
         newCall->Shader = m_shaderProgram;
         newCall->InputLayout = m_inputLayout;
         newCall->VertexSize = vertexSize;
@@ -1015,9 +950,8 @@ ysError dbasic::DeltaEngine::ExecuteShaderStage(int stageIndex) {
                 if (call == nullptr) continue;
                 if (!stage->CheckFlags(call->Flags)) continue;
 
-                m_shaderSet->ReadObjectData(m_objectDataBuffer +
-                                                    call->ObjectDataOffset,
-                                            stageIndex, call->ObjectDataSize);
+                m_shaderSet->ReadObjectData(call->ObjectData, stageIndex,
+                                            call->ObjectDataSize);
                 stage->BindObject();
 
                 if (call->IndexBuffer != nullptr) {
@@ -1079,6 +1013,10 @@ ysError dbasic::DeltaEngine::ExecuteShaderStage(int stageIndex) {
 }
 
 void dbasic::DeltaEngine::ClearDrawQueue() {
+    for (int i = 0; i < MaxLayers; ++i) {
+        const int n = m_drawQueue[i].GetNumObjects();
+        for (int j = 0; j < n; ++j) { free(m_drawQueue[i][j].ObjectData); }
+    }
+
     for (int i = 0; i < MaxLayers; ++i) { m_drawQueue[i].Clear(); }
-    m_objectDataBufferOffset = 0;
 }

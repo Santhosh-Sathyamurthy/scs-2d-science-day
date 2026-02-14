@@ -46,7 +46,6 @@ public:
 
     inline HWND GetWindowHandle() const { return m_hwnd; }
 
-    static int GetWindowsStyle(WindowStyle style, WindowState state);
     static int GetWindowsStyle(WindowStyle style);
     static int GetWindowsState(WindowState state);
 

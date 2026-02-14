@@ -99,6 +99,7 @@ ysError ysWindowsWindowSystem::SurveyMonitors() {
 
 void ysWindowsWindowSystem::ProcessMessages() {
     MSG msg;
+
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
@@ -214,21 +215,16 @@ LRESULT WINAPI ysWindowsWindowSystem::WinProc(HWND hWnd, UINT msg,
                     system->SetCursor(system->GetCursor());
                     return TRUE;
                 }
-            case WM_SYSCOMMAND:
-                if (wParam == SC_KEYMENU && (lParam >> 16) <= 0) { return 0; }
-                return DefWindowProc(hWnd, msg, wParam, lParam);
         }
 
         if (inputSystem != nullptr) {
             /* if (inputSystem->IsGlobalInputEnabled() || target->IsActive()) */
             {
                 switch (msg) {
-                    case WM_SYSKEYDOWN:
-                        inputSystem->OnOsKey(lParam, wParam);
-                        return DefWindowProc(hWnd, msg, wParam, lParam);
-                    case WM_SYSKEYUP:
                     case WM_KEYDOWN:
                     case WM_KEYUP:
+                    case WM_SYSKEYDOWN:
+                    case WM_SYSKEYUP:
                         return inputSystem->OnOsKey(lParam, wParam);
                     case WM_RBUTTONDOWN:
                         return inputSystem->OnOsMouseButtonDown(
@@ -336,15 +332,6 @@ void ysWindowsWindowSystem::SetCursor(Cursor cursor) {
             break;
         case Cursor::Blocked:
             winapiCursor = IDC_NO;
-            break;
-        case Cursor::UpArrow:
-            winapiCursor = IDC_UPARROW;
-            break;
-        case Cursor::Location:
-            winapiCursor = IDC_PIN;
-            break;
-        case Cursor::Help:
-            winapiCursor = IDC_HELP;
             break;
     }
 

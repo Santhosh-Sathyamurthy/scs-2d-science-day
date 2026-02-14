@@ -47,7 +47,7 @@ def write_padding(bytes, f):
         
 
 def write_string(s, f, length=256):
-    output = struct.pack("{}s".format(length), s.encode('charmap'))
+    output = struct.pack("{}s".format(length), s.encode('UTF-8'))
     f.write(output)
         
         
