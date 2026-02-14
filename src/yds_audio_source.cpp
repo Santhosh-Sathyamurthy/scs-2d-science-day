@@ -1,11 +1,9 @@
 #include "../include/yds_audio_source.h"
 
-ysAudioSource::ysAudioSource()
-    : ysAudioSystemObject("AUDIO_BUFFER", API::Undefined) {
+ysAudioSource::ysAudioSource() : ysAudioSystemObject("AUDIO_BUFFER", API::Undefined) {
     ResetLock();
 
     m_bufferSize = 0;
-    m_dataBuffer = nullptr;
 
     m_bufferMode = Mode::Undefined;
 
@@ -14,12 +12,10 @@ ysAudioSource::ysAudioSource()
     m_panVolume = 1.0;
 }
 
-ysAudioSource::ysAudioSource(API api)
-    : ysAudioSystemObject("AUDIO_BUFFER", api) {
+ysAudioSource::ysAudioSource(API api) : ysAudioSystemObject("AUDIO_BUFFER", api) {
     ResetLock();
 
     m_bufferSize = 0;
-    m_dataBuffer = nullptr;
 
     m_bufferMode = Mode::Undefined;
 
@@ -28,7 +24,9 @@ ysAudioSource::ysAudioSource(API api)
     m_panVolume = 1.0;
 }
 
-ysAudioSource::~ysAudioSource() { /* void */ }
+ysAudioSource::~ysAudioSource() {
+    /* void */
+}
 
 ysError ysAudioSource::LockEntireBuffer(void **buffer, SampleOffset *samples) {
     YDS_ERROR_DECLARE("LockEntireBuffer");
@@ -51,18 +49,17 @@ ysError ysAudioSource::UnlockBuffer(void *buffer, SampleOffset samples) {
     YDS_ERROR_DECLARE("UnlockBuffer");
 
     if (!m_locked) return YDS_ERROR_RETURN(ysError::BufferNotLocked);
-    if (samples > m_lockSegment1Size)
-        return YDS_ERROR_RETURN(ysError::OutOfBounds);
+    if (samples > m_lockSegment1Size) return YDS_ERROR_RETURN(ysError::OutOfBounds);
 
     ResetLock();
 
     return YDS_ERROR_RETURN(ysError::None);
 }
 
-ysError ysAudioSource::LockBufferSegment(SampleOffset offset,
-                                         SampleOffset samples, void **segment1,
-                                         SampleOffset *size1, void **segment2,
-                                         SampleOffset *size2) {
+ysError ysAudioSource::LockBufferSegment(
+    SampleOffset offset, SampleOffset samples, 
+    void **segment1, SampleOffset *size1, void **segment2, SampleOffset *size2) 
+{
     YDS_ERROR_DECLARE("LockBufferSegment");
 
     if (m_locked) return YDS_ERROR_RETURN(ysError::BufferAlreadyLocked);
@@ -74,8 +71,8 @@ ysError ysAudioSource::LockBufferSegment(SampleOffset offset,
 
     if (offset + samples > m_bufferSize) {
         m_lockSegment2Size = offset + samples - m_bufferSize;
-    } else
-        m_lockSegment2Size = 0;
+    }
+    else m_lockSegment2Size = 0;
 
     m_lockSegment1Size = samples - m_lockSegment2Size;
     m_locked = true;
@@ -86,18 +83,16 @@ ysError ysAudioSource::LockBufferSegment(SampleOffset offset,
     return YDS_ERROR_RETURN(ysError::None);
 }
 
-ysError ysAudioSource::UnlockBufferSegments(void *segment1,
-                                            SampleOffset segment1Size,
-                                            void *segment2,
-                                            SampleOffset segment2Size) {
+ysError ysAudioSource::UnlockBufferSegments(
+    void *segment1, SampleOffset segment1Size, 
+    void *segment2, SampleOffset segment2Size) 
+{
     YDS_ERROR_DECLARE("UnlockBufferSegments");
 
     if (!m_locked) return YDS_ERROR_RETURN(ysError::BufferNotLocked);
 
-    if (segment1Size > m_lockSegment1Size)
-        return YDS_ERROR_RETURN(ysError::OutOfBounds);
-    if (segment2Size > m_lockSegment2Size)
-        return YDS_ERROR_RETURN(ysError::OutOfBounds);
+    if (segment1Size > m_lockSegment1Size) return YDS_ERROR_RETURN(ysError::OutOfBounds);
+    if (segment2Size > m_lockSegment2Size) return YDS_ERROR_RETURN(ysError::OutOfBounds);
 
     ResetLock();
 
@@ -138,8 +133,6 @@ ysError ysAudioSource::SetPan(float pan) {
 
     return YDS_ERROR_RETURN(ysError::None);
 }
-
-void ysAudioSource::Release() { m_released = true; }
 
 ysError ysAudioSource::Destroy() {
     YDS_ERROR_DECLARE("Destroy");

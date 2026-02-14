@@ -1,16 +1,16 @@
 #ifndef DELTA_BASIC_RIGID_BODY_SYSTEM_H
 #define DELTA_BASIC_RIGID_BODY_SYSTEM_H
 
-#include "delta_core.h"
+// Removed Windows.h — rigid body logic is pure C++
+#include "platform.h"
 
+#include "delta_core.h"
 #include "collision_object.h"
 #include "rigid_body.h"
 #include "collision_detector.h"
 #include "rigid_body_link.h"
 #include "grid_partition_system.h"
 
-#define NOMINMAX
-#include <Windows.h>
 #include <fstream>
 
 namespace dphysics {
@@ -72,23 +72,28 @@ namespace dphysics {
         void GenerateCollisions(RigidBody *body1, RigidBody *body2);
 
         void ResolveCollisions(float dt);
-        void ResolveCollision(Collision *collision, ysVector *velocityChange, ysVector *rotationDirection, float rotationAmount[2], float penetration);
+        void ResolveCollision(Collision *collision, ysVector *velocityChange,
+                              ysVector *rotationDirection, float rotationAmount[2],
+                              float penetration);
 
         void AdjustVelocities(float timestep);
-        void AdjustVelocity(Collision *collision, ysVector velocityChange[2], ysVector rotationChange[2]);
+        void AdjustVelocity(Collision *collision, ysVector velocityChange[2],
+                            ysVector rotationChange[2]);
 
         void GenerateForces(float timeStep);
         void Integrate(float timeStep);
         void UpdateDerivedData();
         void CheckAwake();
 
-        void OrderPrimitives(CollisionObject **prim1, CollisionObject **prim2, RigidBody **body1, RigidBody **body2);
+        void OrderPrimitives(CollisionObject **prim1, CollisionObject **prim2,
+                             RigidBody **body1, RigidBody **body2);
 
         void GenerateCollisions(int start, int count);
-
         void WriteFrameToReplayFile();
 
-        void AttachBreakdownTimer(ysBreakdownTimer *breakdownTimer) { m_breakdownTimer = breakdownTimer; }
+        void AttachBreakdownTimer(ysBreakdownTimer *breakdownTimer) {
+            m_breakdownTimer = breakdownTimer;
+        }
 
     protected:
         ysRegistry<RigidBody, 512> m_rigidBodyRegistry;
@@ -110,16 +115,16 @@ namespace dphysics {
 
         ysBreakdownTimer *m_breakdownTimer;
 
-        // TEST
+        // Spatial partitioning
         GridPartitionSystem m_gridPartitionSystem;
         std::ofstream m_loggingOutput;
 
     protected:
-        // Debug
+        // Debug / replay
         std::fstream m_outputFile;
         bool m_replayEnabled;
     };
 
-} /* namespace dbasic */
+} /* namespace dphysics */
 
 #endif /* DELTA_BASIC_RIGID_BODY_SYSTEM_H */

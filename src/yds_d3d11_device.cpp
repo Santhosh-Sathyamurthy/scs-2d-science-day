@@ -318,8 +318,7 @@ ysError ysD3D11Device::CreateRenderingContext(ysRenderingContext **context,
     UINT multisamplesPerPixel = 1;
     UINT maxQuality;
     DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    const UINT maxMultisampleCount = 8;
-    for (UINT sampleCount = maxMultisampleCount; sampleCount > 0;
+    for (UINT sampleCount = D3D11_MAX_MULTISAMPLE_SAMPLE_COUNT; sampleCount > 0;
          sampleCount /= 2) {
         if (SUCCEEDED(m_device->CheckMultisampleQualityLevels(
                     format, sampleCount, &maxQuality)) &&

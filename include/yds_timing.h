@@ -11,6 +11,7 @@ public:
 
 protected:
     static ysTimingSystem *g_instance;
+    static const int DurationSamples = 64;
 
 public:
     ysTimingSystem();
@@ -42,11 +43,13 @@ public:
         return m_averageFrameDuration;
     }
 
+    inline int GetDurationSamples() const { return m_durationSamples; }
+
 protected:
     Precision m_precisionMode;
     double m_div;
 
-    unsigned long m_frameNumber;
+    unsigned m_frameNumber;
 
     uint64_t m_lastFrameTimestamp;
     uint64_t m_lastFrameDuration;
@@ -57,8 +60,11 @@ protected:
     bool m_isPaused;
 
     double m_averageFrameDuration;
-    double m_averageTimer;
     float m_fps;
+
+    double *m_frameDurations;
+    int m_durationSampleWriteIndex;
+    int m_durationSamples;
 };
 
 #endif /* YS_TIMING_H */

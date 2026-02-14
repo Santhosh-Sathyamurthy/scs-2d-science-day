@@ -206,6 +206,9 @@ ysError ysDS8AudioSource::SetPan(float pan) {
 
 bool ysDS8AudioSource::SetCurrentPosition(SampleOffset position) {
     if (!ysAudioSource::SetCurrentPosition(position)) { return false; }
+
+    if (UpdateStatus() != ysError::None) { return false; }
+
     if (m_lost) {
         if (RestoreBuffer() != ysError::None) { return false; }
     }
@@ -215,15 +218,17 @@ bool ysDS8AudioSource::SetCurrentPosition(SampleOffset position) {
     const DWORD currentPosition =
             DWORD(m_audioParameters.GetSizeFromSamples(position));
     const HRESULT result = m_buffer->SetCurrentPosition(currentPosition);
-    if (FAILED(result)) {
-        UpdateStatus();
-        return false;
-    }
+    if (FAILED(result)) { return false; }
 
     return true;
 }
 
 bool ysDS8AudioSource::GetCurrentPosition(SampleOffset *position) {
+    if (UpdateStatus() != ysError::None) {
+        *position = 0;
+        return false;
+    }
+
     if (m_lost) {
         if (RestoreBuffer() != ysError::None) {
             *position = 0;
@@ -242,7 +247,6 @@ bool ysDS8AudioSource::GetCurrentPosition(SampleOffset *position) {
     result = m_buffer->GetCurrentPosition(&currentPosition, NULL);
     if (FAILED(result)) {
         *position = 0;
-        UpdateStatus();
         return false;
     }
 
@@ -252,6 +256,11 @@ bool ysDS8AudioSource::GetCurrentPosition(SampleOffset *position) {
 }
 
 bool ysDS8AudioSource::GetCurrentWritePosition(SampleOffset *position) {
+    if (UpdateStatus() != ysError::None) {
+        *position = 0;
+        return false;
+    }
+
     if (m_lost) {
         if (RestoreBuffer() != ysError::None) {
             *position = 0;
@@ -270,7 +279,6 @@ bool ysDS8AudioSource::GetCurrentWritePosition(SampleOffset *position) {
     result = m_buffer->GetCurrentPosition(NULL, &currentWrite);
     if (FAILED(result)) {
         *position = 0;
-        UpdateStatus();
         return false;
     }
 

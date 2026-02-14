@@ -38,7 +38,6 @@ ysError dbasic::Console::Initialize() {
 
 ysError dbasic::Console::ResetScreenPosition() {
     YDS_ERROR_DECLARE("Reset");
-    if (m_buffer == nullptr) { return YDS_ERROR_RETURN(ysError::None); }
 
     for (int i = 0; i < BufferWidth; i++) {
         for (int j = 0; j < BufferHeight; j++) {
@@ -234,8 +233,8 @@ void dbasic::Console::DrawWrappedText(const char *text, int width) {
 
 int dbasic::Console::GetTotalNotWhitespace() const {
     int n = 0;
-    for (int j = 0; j < BufferHeight; ++j) {
-        for (int i = 0; i < BufferWidth; ++i) {
+    for (int i = 0; i < BufferWidth; ++i) {
+        for (int j = 0; j < BufferHeight; ++j) {
             if (!IsWhiteSpace(m_buffer[i + j * BufferWidth])) { ++n; }
         }
     }

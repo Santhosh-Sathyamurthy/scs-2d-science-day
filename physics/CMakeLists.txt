@@ -1,3 +1,46 @@
+cmake_minimum_required(VERSION 3.16)
+project(delta-physics CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ── Platform detection ────────────────────────────────────────────────────────
+if(WIN32)
+    add_compile_definitions(PLATFORM_WINDOWS=1 PLATFORM_LINUX=0 PLATFORM_MACOS=0)
+elseif(UNIX AND NOT APPLE)
+    add_compile_definitions(PLATFORM_WINDOWS=0 PLATFORM_LINUX=1 PLATFORM_MACOS=0)
+elseif(APPLE)
+    add_compile_definitions(PLATFORM_WINDOWS=0 PLATFORM_LINUX=0 PLATFORM_MACOS=1)
+endif()
+
+# ── MSVC shims / compiler flags ───────────────────────────────────────────────
+if(MSVC)
+    add_compile_definitions(COMPILER_MSVC=1)
+    add_compile_options(/W3)
+else()
+    add_compile_definitions(COMPILER_MSVC=0)
+    # Suppress warnings expected in cross-platform migration
+    add_compile_options(
+        -Wall -Wextra -Wno-unused-parameter
+        -Wno-missing-field-initializers
+    )
+    # SIMD: __m128 layout — use intrinsics, not MSVC member names
+    add_compile_options(-msse4.1)
+endif()
+
+# ── Find SDL2 (required on Linux / macOS) ────────────────────────────────────
+if(NOT WIN32)
+    find_package(SDL2 REQUIRED)
+    find_package(OpenGL REQUIRED)
+
+    # Some distros expose SDL2 via pkg-config only
+    if(NOT SDL2_FOUND)
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(SDL2 REQUIRED sdl2)
+    endif()
+endif()
+
+# ── delta-physics library (original structure) ────────────────────────────────
 add_library(delta-physics
     include/collision_detector.h
     include/collision_geometry.h
@@ -35,3 +78,27 @@ add_library(delta-physics
     src/rigid_body_system.cpp
     src/spring_link.cpp
 )
+
+target_include_directories(delta-physics
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# ── Cross-platform dependencies ──────────────────────────────────────────────
+if(NOT WIN32)
+    target_link_libraries(delta-physics
+        PUBLIC
+            pthread
+    )
+    # Linux: link against rt for clock_gettime on older glibc
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(delta-physics PUBLIC rt)
+    endif()
+endif()
+
+# ── Install instructions (optional) ──────────────────────────────────────────
+install(TARGETS delta-physics
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+)
+install(DIRECTORY include/ DESTINATION include/delta-physics)

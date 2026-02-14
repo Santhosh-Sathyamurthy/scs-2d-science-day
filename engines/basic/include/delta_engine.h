@@ -30,7 +30,7 @@ public:
 
     struct DrawCall {
         StageEnableFlags Flags = 0;
-        size_t ObjectDataOffset;
+        void *ObjectData;
         int ObjectDataSize;
         ysShaderProgram *Shader = nullptr;
         ysInputLayout *InputLayout = nullptr;
@@ -120,9 +120,6 @@ public:
     ysError LoadFont(Font **font, const wchar_t *path, int size = 4096,
                      int fontSize = 64);
 
-    ysError UpdateAudioDeviceStates();
-    ysError UpdatePrimaryDevice();
-    ysError FreeUnusedAudioDevices();
     ysError PlayAudio(AudioAsset *audio);
 
     void SubmitSkeleton(Skeleton *skeleton);
@@ -132,7 +129,6 @@ public:
     }
 
     bool IsOpen() const { return m_gameWindow->IsOpen(); }
-    WindowHandler &WindowHandler() { return m_windowHandler; }
 
     void SetWindowSize(int width, int height);
     void SetConsoleColor(const ysVector &v);
@@ -174,7 +170,6 @@ public:
     UiRenderer *GetUiRenderer() { return &m_uiRenderer; }
 
     ysAudioDevice *GetAudioDevice() const { return m_audioDevice; }
-    ysAudioSystem *GetAudioSystem() const { return m_audioSystem; }
     ysBreakdownTimer &GetBreakdownTimer() { return m_breakdownTimer; }
 
     ysWindowSystem *GetWindowSystem() const { return m_windowSystem; }
@@ -212,7 +207,7 @@ protected:
     ysWindowSystem *m_windowSystem;
     ysInputSystem *m_inputSystem;
 
-    dbasic::WindowHandler m_windowHandler;
+    WindowHandler m_windowHandler;
     ysWindow *m_gameWindow;
 
     ysRenderingContext *m_renderingContext;
@@ -264,7 +259,6 @@ protected:
     ysBreakdownTimer m_breakdownTimer;
 
     DrawCall *NewDrawCall(int layer, int objectDataSize);
-    size_t AllocateObjectData(int objectDataSize);
 
 protected:
     // Settings
@@ -287,11 +281,6 @@ protected:
 protected:
     // Drawing queues
     ysExpandingArray<DrawCall, 256> *m_drawQueue;
-
-    char *m_objectDataBuffer;
-    size_t m_objectDataBufferOffset;
-    size_t m_objectDataBufferSize;
-
     ysError ExecuteDrawQueue();
     ysError ExecuteShaderStage(int stageIndex);
 

@@ -1,11 +1,6 @@
-// TEMP
-#define NOMINMAX
-#include <Windows.h>
-
+// Removed Windows.h dependency — the error system is pure C++
 #include "../include/yds_error_system.h"
-
 #include "../include/yds_error_handler.h"
-
 #include <assert.h>
 
 ysErrorSystem *ysErrorSystem::g_instance = nullptr;
@@ -14,7 +9,6 @@ ysErrorSystem::ysErrorSystem() {
     if (g_instance != nullptr) {
         YDS_ERROR_RAISE(ysError::MultipleErrorSystems);
     }
-
     g_instance = this;
 }
 
@@ -36,6 +30,5 @@ ysError ysErrorSystem::RaiseError(ysError error, unsigned int line,
             m_errorHandlers.Get(i)->OnError(error, line, object, file);
         }
     }
-
     return error;
 }

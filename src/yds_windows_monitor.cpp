@@ -1,12 +1,27 @@
-#include "../include/yds_windows_monitor.h"
+#ifndef YDS_WINDOWS_MONITOR_H
+#define YDS_WINDOWS_MONITOR_H
 
-#define NOMINMAX
-#include <Windows.h>
+#include "platform.h"
+#include "yds_monitor.h"
 
-ysWindowsMonitor::ysWindowsMonitor() : ysMonitor(Platform::Windows) {
-    InitializeDeviceName(CCHDEVICENAME);
-}
+#if PLATFORM_WINDOWS
+    #define NOMINMAX
+    #include <Windows.h>
+#else
+    // Stub type — HMONITOR is just a pointer on Windows
+    typedef void *HMONITOR;
+#endif
 
-ysWindowsMonitor::~ysWindowsMonitor() {
-    /* void */
-}
+class ysWindowsMonitor : public ysMonitor {
+public:
+    ysWindowsMonitor();
+    ~ysWindowsMonitor();
+
+    void Initialize(HMONITOR monitor) { m_handle = monitor; }
+    HMONITOR Handle() const           { return m_handle; }
+
+private:
+    HMONITOR m_handle;
+};
+
+#endif /* YDS_WINDOWS_MONITOR_H */

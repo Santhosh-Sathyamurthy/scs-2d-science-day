@@ -46,7 +46,7 @@ private:
 
 private:
     bool m_lost;
-    IDirectSoundBuffer8 *m_buffer;
+    IDirectSoundBuffer *m_buffer;
 };
 
 #endif /* YDS_DIRECT_SOUND8_AUDIO_SOURCE_H */

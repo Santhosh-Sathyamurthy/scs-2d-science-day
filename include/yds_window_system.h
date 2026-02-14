@@ -13,9 +13,6 @@ public:
         Hand,
         Pan,
         Arrow,
-        UpArrow,
-        Location,
-        Help,
         Blocked
     };
 
