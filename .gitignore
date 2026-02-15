@@ -7,3 +7,10 @@ workspace/
 # clangd cache and code completion files
 .cache
 compile_commands.json
+
+# Visual Studio files
+.vs/
+*.ipch
+*.db
+bin/
+obj/

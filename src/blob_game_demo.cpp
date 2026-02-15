@@ -21,7 +21,7 @@ void BlobGameDemo::initialize() {
     setTargetSystem(&m_rigidBodySystem);
     m_rigidBodySystem.reset();
     m_rigidBodySystem.initialize(
-        new atg_scs::GaussianEliminationSleSolver, new atg_scs::Rk4OdeSolver);
+        new atg_scs::GaussianEliminationSleSolver, new atg_scs::Rk6OdeSolver);
 
     m_blobs = new Blob *[BlobCount];
 

@@ -7,7 +7,8 @@
 #include "../include/motor_demo.h"
 #include "../include/rolling_demo.h"
 #include "../include/spring_cloth_demo.h"
-#include "../include/spring_double_pendulum_demo.h"
+#include "../include/spring_double_pendulum_demo_Eulerian.h"
+#include "../include/spring_double_pendulum_demo_RK6.h"
 #include "../include/spring_mass_demo.h"
 #include "../include/triple_pendulum_demo.h"
 
@@ -121,9 +122,10 @@ void DemoApplication::initialize(void *instance,
     m_blobBackground = m_assetManager.GetModelAsset("Blob_shadow");
     m_blobFace = m_assetManager.GetModelAsset("Blob_face");
 
-    m_activeDemo = 6;
+    m_activeDemo = 7;
 
-    addDemo(new SpringDoublePendulumDemo);
+    addDemo(new SpringDoublePendulumDemo_Eulerian);
+    addDemo(new SpringDoublePendulumDemo_RK6);
     addDemo(new BlobGameDemo);
     addDemo(new SpringMassDemo);
     addDemo(new SpringClothDemo);
@@ -1022,7 +1024,7 @@ void DemoApplication::renderTitle() {
     const float leftMargin = pixelsToUnits(50.0f);
     const float topMargin = pixelsToUnits(50.0f);
     const float titleBoxHeight = pixelsToUnits(180.0f);
-    const float titleBoxWidth = pixelsToUnits(500.0f);
+    const float titleBoxWidth = pixelsToUnits(600.0f);
     const float lineWidth = pixelsToUnits(1.0f);
 
     m_geometryGenerator.startShape();

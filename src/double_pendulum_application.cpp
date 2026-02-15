@@ -54,7 +54,7 @@ void DoublePendulumDemo::initialize() {
     m_rigidBodySystem.addRigidBody(&m_pendulum0);
     m_rigidBodySystem.addRigidBody(&m_pendulum1);
 
-    m_rigidBodySystem.initialize(new atg_scs::GaussSeidelSleSolver, new atg_scs::Rk4OdeSolver);
+    m_rigidBodySystem.initialize(new atg_scs::GaussSeidelSleSolver, new atg_scs::Rk6OdeSolver);
 }
 
 void DoublePendulumDemo::process(float dt) {

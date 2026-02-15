@@ -1,28 +1,28 @@
-#include "../include/spring_double_pendulum_demo.h"
+#include "../include/spring_double_pendulum_demo_Eulerian.h"
 
 #include "../include/demo_application.h"
 
 #include <sstream>
 
-SpringDoublePendulumDemo::SpringDoublePendulumDemo() {
-    setName("Double Pendulum Demo");
+SpringDoublePendulumDemo_Eulerian::SpringDoublePendulumDemo_Eulerian() {
+    setName("Double Pendulum (Improved Eulerian)");
 
     m_steps = 5;
     m_end = nullptr;
     m_plotter = nullptr;
 }
 
-SpringDoublePendulumDemo::~SpringDoublePendulumDemo() {
+SpringDoublePendulumDemo_Eulerian::~SpringDoublePendulumDemo_Eulerian() {
     /* void */
 }
 
-void SpringDoublePendulumDemo::initialize() {
+void SpringDoublePendulumDemo_Eulerian::initialize() {
     clear();
 
     setTargetSystem(&m_rigidBodySystem);
     m_rigidBodySystem.reset();
-    m_rigidBodySystem.initialize(
-        new atg_scs::GaussianEliminationSleSolver, new atg_scs::Rk4OdeSolver);
+    m_rigidBodySystem.initialize(new atg_scs::GaussianEliminationSleSolver,
+                                 new atg_scs::ImprovedEulerOdeSolver);
 
     setCursor(0.0, 2.0);
 
@@ -34,7 +34,7 @@ void SpringDoublePendulumDemo::initialize() {
     DiskObject *link = createLinkedDisk(0.5, 1.0);
 
     SpringObject *s0 = connectSpring(&base->m_body, 0.0, 2.0);
-    s0->m_spring.m_ks = 10000;
+    s0->m_spring.m_ks = 100;
     s0->m_spring.m_kd = 0.0;
 
     setActiveBody(nullptr);
@@ -42,7 +42,7 @@ void SpringDoublePendulumDemo::initialize() {
     m_end = createLinkedDisk(0.5, 1.0);
 
     SpringObject *s1 = connectSpring(&link->m_body, 2.0, 2.0);
-    s1->m_spring.m_ks = 10000;
+    s1->m_spring.m_ks = 100;
     s1->m_spring.m_kd = 0.0;
 
     GravityObject *gravity = createObject<GravityObject>(&m_rigidBodySystem);
@@ -55,7 +55,7 @@ void SpringDoublePendulumDemo::initialize() {
     createControlSpring(1000.0, 100.0);
 }
 
-void SpringDoublePendulumDemo::process(float dt) {
+void SpringDoublePendulumDemo_Eulerian::process(float dt) {
     m_rigidBodySystem.process((double)dt, m_steps);
 
     m_dt = dt;
@@ -67,7 +67,7 @@ void SpringDoublePendulumDemo::process(float dt) {
     m_plotter->addPoint({ (float)m_end->m_body.p_x, (float)m_end->m_body.p_y });
 }
 
-void SpringDoublePendulumDemo::render() {
+void SpringDoublePendulumDemo_Eulerian::render() {
     m_app->drawGrid();
 
     renderObjects();

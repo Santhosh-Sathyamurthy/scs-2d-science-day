@@ -20,7 +20,7 @@ void SpringClothDemo::initialize() {
     setTargetSystem(&m_rigidBodySystem);
     m_rigidBodySystem.reset();
     m_rigidBodySystem.initialize(
-        new atg_scs::GaussianEliminationSleSolver, new atg_scs::Rk4OdeSolver);
+        new atg_scs::GaussianEliminationSleSolver, new atg_scs::Rk6OdeSolver);
 
     constexpr int ClothNodes = 6;
     constexpr double ClothWidth = 8.0;
@@ -47,7 +47,7 @@ void SpringClothDemo::initialize() {
                         nodes[(i - 1) * ClothNodes + j]->p_x,
                         nodes[(i - 1) * ClothNodes + j]->p_y);
                 spring->m_spring.m_ks = 20.0;
-                spring->m_spring.m_kd = 1.0;
+                spring->m_spring.m_kd = 0.1;
                 spring->m_radius = 0.1f;
                 spring->m_coilCount = 3;
             }
@@ -58,7 +58,7 @@ void SpringClothDemo::initialize() {
                         nodes[i * ClothNodes + j - 1]->p_x,
                         nodes[i * ClothNodes + j - 1]->p_y);
                 spring->m_spring.m_ks = 20.0;
-                spring->m_spring.m_kd = 1.0;
+                spring->m_spring.m_kd = 0.1;
                 spring->m_radius = 0.1f;
                 spring->m_coilCount = 3;
             }

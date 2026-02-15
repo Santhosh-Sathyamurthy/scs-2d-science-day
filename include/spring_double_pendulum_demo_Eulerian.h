@@ -1,5 +1,5 @@
-#ifndef ATG_SCS_2D_DEMO_SPRING_DOUBLE_PENDULUM_DEMO_H
-#define ATG_SCS_2D_DEMO_SPRING_DOUBLE_PENDULUM_DEMO_H
+#ifndef ATG_SCS_2D_DEMO_SPRING_DOUBLE_PENDULUM_DEMO_Eulerian_H
+#define ATG_SCS_2D_DEMO_SPRING_DOUBLE_PENDULUM_DEMO_Eulerian_H
 
 #include "demo.h"
 
@@ -12,10 +12,10 @@
 #include "plotter.h"
 #include "scs.h"
 
-class SpringDoublePendulumDemo : public Demo {
+class SpringDoublePendulumDemo_Eulerian : public Demo {
     public:
-        SpringDoublePendulumDemo();
-        virtual ~SpringDoublePendulumDemo();
+        SpringDoublePendulumDemo_Eulerian();
+        virtual ~SpringDoublePendulumDemo_Eulerian();
 
         virtual void initialize();
         virtual void process(float dt);
@@ -28,4 +28,4 @@ class SpringDoublePendulumDemo : public Demo {
         Plotter *m_plotter;
 };
 
-#endif /* ATG_SCS_2D_DEMO_SPRING_DOUBLE_PENDULUM_DEMO_H */
+#endif /* ATG_SCS_2D_DEMO_SPRING_DOUBLE_PENDULUM_DEMO_Eulerian_H */

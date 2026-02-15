@@ -20,7 +20,7 @@ void ComplexRollerDemo::initialize() {
     setTargetSystem(&m_rigidBodySystem);
     m_rigidBodySystem.reset();
     m_rigidBodySystem.initialize(
-        new atg_scs::GaussianEliminationSleSolver, new atg_scs::Rk4OdeSolver);
+        new atg_scs::GaussianEliminationSleSolver, new atg_scs::Rk6OdeSolver);
 
     const double input_y = 2;
     const double floor_y = -5;
@@ -36,10 +36,10 @@ void ComplexRollerDemo::initialize() {
     fixObject(0, input_y);
 
     ConstantSpeedMotor *motor = createMotor(&motorBase->m_body);
-    motor->m_motor.m_speed = 1.0;
+    motor->m_motor.m_speed = 2.0;
     motor->m_motor.m_ks = 600;
     motor->m_radius = 2.0;
-    motor->m_motor.m_maxTorque = 200;
+    motor->m_motor.m_maxTorque = 13000;
    
     setCursor(width / 2, floor_y);
     setActiveBody(nullptr);
@@ -52,7 +52,7 @@ void ComplexRollerDemo::initialize() {
     fixObject(-width / 2, floor_y);
 
     SpringObject *spring = connectSpring(&rightBeam->m_body, width / 2, beamTop);
-    spring->m_spring.m_ks = 1;
+    spring->m_spring.m_ks = 20;
     spring->m_spring.m_restLength = width / 2;
     spring->m_coilCount = 24;
 

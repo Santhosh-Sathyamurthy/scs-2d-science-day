@@ -7,7 +7,7 @@
 EnergyTransferDemo::EnergyTransferDemo() {
     setName("Natural Frequency Demo");
 
-    m_steps = 10;
+    m_steps = 200;
 }
 
 EnergyTransferDemo::~EnergyTransferDemo() {
@@ -20,7 +20,7 @@ void EnergyTransferDemo::initialize() {
     setTargetSystem(&m_rigidBodySystem);
     m_rigidBodySystem.reset();
     m_rigidBodySystem.initialize(
-        new atg_scs::GaussianEliminationSleSolver, new atg_scs::Rk4OdeSolver);
+        new atg_scs::GaussianEliminationSleSolver, new atg_scs::Rk6OdeSolver);
 
     for (int i = 0; i < 2; ++i) {
         const double y = (i == 0)
@@ -74,7 +74,7 @@ void EnergyTransferDemo::initialize() {
         motor0->m_motor.m_ks = 200;
         motor0->m_motor.m_kd = 1;
         motor0->m_motor.m_maxTorque = 1000;
-        motor0->m_motor.m_speed = (i == 0) ? 3.0 : 20.0;
+        motor0->m_motor.m_speed = (i == 0) ? 8.37 : 20.0;
     }
 
     createMouseEmpty(EmptyObject::Style::Cursor);
