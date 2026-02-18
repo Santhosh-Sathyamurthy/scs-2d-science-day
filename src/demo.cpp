@@ -21,6 +21,10 @@ Demo::Demo() {
     m_activeBody = nullptr;
     m_targetSystem = nullptr;
     m_mouseObject = nullptr;
+
+    m_interactionMode = InteractionMode::SelectDrag;
+    m_awaitingSecondClick = false;
+    m_firstClickObject = nullptr;
 }
 
 Demo::~Demo() {
@@ -50,73 +54,359 @@ void Demo::initialize() {
 }
 
 void Demo::render() {
-    /* void */
+    // Render all demo objects
+    renderObjects();
+    
+    // Render current interaction mode indicator
+    const char* modeText = "";
+    const char* modeHelp = "";
+    
+    switch (m_interactionMode) {
+        case InteractionMode::SelectDrag: 
+            modeText = "[1] DRAG MODE"; 
+            modeHelp = "Click and drag objects";
+            break;
+        case InteractionMode::AddSpring: 
+            modeText = "[2] ADD SPRING"; 
+            modeHelp = m_awaitingSecondClick ? "Click second point..." : "Click two points to connect";
+            break;
+        case InteractionMode::AddMotor: 
+            modeText = "[3] ADD MOTOR"; 
+            modeHelp = "Click point on object";
+            break;
+        case InteractionMode::AddFixedJoint: 
+            modeText = "[4] FIX JOINT"; 
+            modeHelp = "Click to lock position";
+            break;
+        case InteractionMode::Delete: 
+            modeText = "[5] DELETE"; 
+            modeHelp = "Click constraint to remove";
+            break;
+    }
+    
+    // Render mode text in top-right corner
+    float gridWidth, gridHeight;
+    m_app->getGridFrameSize(&gridWidth, &gridHeight);
+    
+    float textX = m_app->unitsToPixels(gridWidth/2) - 300;
+    float textY = m_app->unitsToPixels(gridHeight/2) - 50;
+    
+    m_app->getTextRenderer()->RenderText(modeText, textX, textY, 20.0f);
+    m_app->getTextRenderer()->RenderText(modeHelp, textX, textY + 25, 14.0f);
+    
+    // If waiting for second click in AddSpring mode, draw preview line
+    if (m_interactionMode == InteractionMode::AddSpring && m_awaitingSecondClick) {
+        // Draw a line from first click to current mouse position
+        int mouseX, mouseY;
+        m_app->getEngine()->GetOsMousePos(&mouseX, &mouseY);
+        
+        const int w = m_app->getScreenWidth();
+        const int h = m_app->getScreenHeight();
+        const double currentX = m_app->pixelsToUnits(mouseX - (float)w / 2);
+        const double currentY = m_app->pixelsToUnits(mouseY - (float)h / 2);
+        
+        // Draw preview line (you'll need to implement this using your geometry generator)
+        // This gives visual feedback showing where the spring will connect
+        // m_app->drawLine(m_firstClickX, m_firstClickY, currentX, currentY);
+    }
 }
 
 void Demo::process(float dt) {
     processObjects(dt);
 }
 
+void Demo::setInteractionMode(InteractionMode mode) {
+    m_interactionMode = mode;
+    m_awaitingSecondClick = false;
+    m_firstClickObject = nullptr;
+    
+    // Visual feedback - could render current mode on screen
+}
+
+void Demo::handleModeSelection() {
+    // Keyboard shortcuts for mode selection
+    if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N1)) {
+        setInteractionMode(InteractionMode::SelectDrag);
+    }
+    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N2)) {
+        setInteractionMode(InteractionMode::AddSpring);
+    }
+    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N3)) {
+        setInteractionMode(InteractionMode::AddMotor);
+    }
+    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N4)) {
+        setInteractionMode(InteractionMode::AddFixedJoint);
+    }
+    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N5)) {
+        setInteractionMode(InteractionMode::Delete);
+    }
+}
+
+DemoObject* Demo::findObjectAt(double px, double py) {
+    DemoObject::ClickEvent clickEvent{};
+    clickEvent.clicked = false;
+    
+    const int n = (int)m_objects.size();
+    for (int i = n - 1; i >= 0; --i) {
+        m_objects[i]->onClick(px, py, &clickEvent);
+        if (clickEvent.clicked) {
+            return m_objects[i];
+        }
+    }
+    return nullptr;
+}
+
 void Demo::processInput() {
     if (m_mouseObject == nullptr) return;
-
+    
+    // Handle mode selection
+    handleModeSelection();
+    
     int x, y;
     m_app->getEngine()->GetOsMousePos(&x, &y);
-
+    
     const int w = m_app->getScreenWidth();
     const int h = m_app->getScreenHeight();
     const double px = m_app->pixelsToUnits(x - (float)w / 2);
     const double py = m_app->pixelsToUnits(y - (float)h / 2);
-
+    
     if (m_app->getEngine()->ProcessMouseButtonDown(ysMouse::Button::Left)) {
-        DemoObject *clickedObject = nullptr;
-        DemoObject::ClickEvent clickEvent{};
-        clickEvent.clicked = false;
-
-        const int n = (int)m_objects.size();
-        for (int i = n - 1; i >= 0; --i) {
-            m_objects[i]->onClick(px, py, &clickEvent);
-
-            if (clickEvent.clicked) {
-                clickedObject = m_objects[i];
+        switch (m_interactionMode) {
+            case InteractionMode::SelectDrag:
+                // Your existing drag code
+                handleSelectDrag(px, py);
                 break;
-            }
+                
+            case InteractionMode::AddSpring:
+                handleAddSpring(px, py);
+                break;
+                
+            case InteractionMode::AddMotor:
+                handleAddMotor(px, py);
+                break;
+                
+            case InteractionMode::AddFixedJoint:
+                handleAddFixedJoint(px, py);
+                break;
+                
+            case InteractionMode::Delete:
+                handleDelete(px, py);
+                break;
         }
+    }
+    
+    // Update mouse object position
+    m_mouseObject->m_body.p_x = px;
+    m_mouseObject->m_body.p_y = py;
+}
 
-        if (clickEvent.clicked) {
-            for (int i = 0; i < 16; ++i) {
-                if (m_controlSprings[i] == nullptr) continue;
-
-                if (m_controlSprings[i]->getSystem() == clickedObject->getSystem()) {
-                    m_controlSprings[i]->m_spring.m_body1 = &m_mouseObject->m_body;
-                    m_controlSprings[i]->m_spring.m_body2 = clickEvent.body;
-                    m_controlSprings[i]->setVisible(true);
-                    m_controlSprings[i]->m_coilCount = 8;
-                    m_controlSprings[i]->m_spring.m_restLength = 0;
-
-                    double lx, ly;
-                    clickEvent.body->worldToLocal(
-                        clickEvent.x, clickEvent.y, &lx, &ly);
-                    m_controlSprings[i]->m_spring.m_p1_x = 0;
-                    m_controlSprings[i]->m_spring.m_p1_y = 0;
-                    m_controlSprings[i]->m_spring.m_p2_x = lx;
-                    m_controlSprings[i]->m_spring.m_p2_y = ly;
-                }
-            }
-        }
-        else {
-            for (int i = 0; i < 16; ++i) {
-                if (m_controlSprings[i] == nullptr) continue;
-
-                m_controlSprings[i]->setVisible(false);
-                m_controlSprings[i]->m_spring.m_body1 = nullptr;
-                m_controlSprings[i]->m_spring.m_body2 = nullptr;
+void Demo::handleSelectDrag(double px, double py) {
+    // Your existing code - extract from processInput()
+    DemoObject *clickedObject = findObjectAt(px, py);
+    
+    if (clickedObject != nullptr) {
+        DemoObject::ClickEvent clickEvent{};
+        clickedObject->onClick(px, py, &clickEvent);
+        
+        for (int i = 0; i < 16; ++i) {
+            if (m_controlSprings[i] == nullptr) continue;
+            
+            if (m_controlSprings[i]->getSystem() == clickedObject->getSystem()) {
+                m_controlSprings[i]->m_spring.m_body1 = &m_mouseObject->m_body;
+                m_controlSprings[i]->m_spring.m_body2 = clickEvent.body;
+                m_controlSprings[i]->setVisible(true);
+                m_controlSprings[i]->m_coilCount = 8;
+                m_controlSprings[i]->m_spring.m_restLength = 0;
+                
+                double lx, ly;
+                clickEvent.body->worldToLocal(clickEvent.x, clickEvent.y, &lx, &ly);
+                m_controlSprings[i]->m_spring.m_p1_x = 0;
+                m_controlSprings[i]->m_spring.m_p1_y = 0;
+                m_controlSprings[i]->m_spring.m_p2_x = lx;
+                m_controlSprings[i]->m_spring.m_p2_y = ly;
             }
         }
     }
+    else {
+        for (int i = 0; i < 16; ++i) {
+            if (m_controlSprings[i] == nullptr) continue;
+            m_controlSprings[i]->setVisible(false);
+            m_controlSprings[i]->m_spring.m_body1 = nullptr;
+            m_controlSprings[i]->m_spring.m_body2 = nullptr;
+        }
+    }
+}
 
-    m_mouseObject->m_body.p_x = px;
-    m_mouseObject->m_body.p_y = py;
+void Demo::handleAddSpring(double px, double py) {
+    DemoObject* clickedObject = findObjectAt(px, py);
+    
+    if (!m_awaitingSecondClick) {
+        // First click - store it
+        if (clickedObject != nullptr) {
+            DemoObject::ClickEvent clickEvent{};
+            clickedObject->onClick(px, py, &clickEvent);
+            
+            if (clickEvent.clicked) {
+                m_firstClickObject = clickedObject;
+                m_firstClickX = px;
+                m_firstClickY = py;
+                m_awaitingSecondClick = true;
+            }
+        }
+    }
+    else {
+        // Second click - create spring
+        if (clickedObject != nullptr) {
+            DemoObject::ClickEvent event1{}, event2{};
+            m_firstClickObject->onClick(m_firstClickX, m_firstClickY, &event1);
+            clickedObject->onClick(px, py, &event2);
+            
+            if (event1.clicked && event2.clicked) {
+                double lx1, ly1, lx2, ly2;
+                event1.body->worldToLocal(event1.x, event1.y, &lx1, &ly1);
+                event2.body->worldToLocal(event2.x, event2.y, &lx2, &ly2);
+                
+                // NOW CREATE THE SPRING WITH THE BODY REFERENCES
+                createUserSpringWithBodies(
+                    event1.body, lx1, ly1,
+                    event2.body, lx2, ly2,
+                    m_firstClickObject->getSystem()
+                );
+            }
+        }
+        
+        m_awaitingSecondClick = false;
+        m_firstClickObject = nullptr;
+    }
+}
+
+void Demo::createUserSpringWithBodies(atg_scs::RigidBody* body1, double lx1, double ly1,
+                                     atg_scs::RigidBody* body2, double lx2, double ly2,
+                                     atg_scs::RigidBodySystem* system) {
+    // Calculate rest length
+    double wx1, wy1, wx2, wy2;
+    body1->localToWorld(lx1, ly1, &wx1, &wy1);
+    body2->localToWorld(lx2, ly2, &wx2, &wy2);
+    double dx = wx2 - wx1;
+    double dy = wy2 - wy1;
+    double restLength = std::sqrt(dx*dx + dy*dy);
+    
+    // Create visual spring using existing template (already adds to system)
+    SpringObject* springObj = new SpringObject();
+    springObj->m_spring.m_body1 = body1;
+    springObj->m_spring.m_body2 = body2;
+    springObj->m_spring.m_p1_x = lx1;
+    springObj->m_spring.m_p1_y = ly1;
+    springObj->m_spring.m_p2_x = lx2;
+    springObj->m_spring.m_p2_y = ly2;
+    springObj->m_spring.m_restLength = restLength;
+    springObj->m_spring.m_ks = 100.0;
+    springObj->m_spring.m_kd = 0.0;
+    springObj->m_coilCount = 8;
+    springObj->setVisible(true);
+    
+    addObject(springObj, system);
+    // Store constraint data
+    ConstraintData constraint;
+    constraint.type = ConstraintData::Spring;
+    constraint.body1 = body1;
+    constraint.body2 = body2;
+    constraint.localX1 = lx1;
+    constraint.localY1 = ly1;
+    constraint.localX2 = lx2;
+    constraint.localY2 = ly2;
+    constraint.springK = 500.0;
+    constraint.springDamping = 10.0;
+    constraint.restLength = restLength;
+    constraint.visualObject = springObj;
+    
+    m_userConstraints.push_back(constraint);
+}
+
+// Keep the old signature but make it call the new one (for compatibility)
+void Demo::createUserSpring(DemoObject* obj1, double lx1, double ly1,
+                            DemoObject* obj2, double lx2, double ly2) {
+    // This is a compatibility wrapper - not used anymore
+}
+void Demo::handleAddMotor(double px, double py) {
+    DemoObject* clickedObject = findObjectAt(px, py);
+    
+    if (clickedObject != nullptr) {
+        DemoObject::ClickEvent clickEvent{};
+        clickedObject->onClick(px, py, &clickEvent);
+        
+        if (clickEvent.clicked) {
+            // Create motor constraint data
+            ConstraintData constraint;
+            constraint.type = ConstraintData::Motor;
+            constraint.body1 = clickEvent.body;
+            constraint.body2 = nullptr;
+            
+            double lx, ly;
+            clickEvent.body->worldToLocal(px, py, &lx, &ly);
+            constraint.localX1 = lx;
+            constraint.localY1 = ly;
+            constraint.motorSpeed = 2.0;
+            constraint.motorTorque = 100.0;
+            
+            m_userConstraints.push_back(constraint);
+        }
+    }
+}
+
+void Demo::createUserMotor(DemoObject* obj, double lx, double ly, double speed) {
+    atg_scs::RigidBody* body = &obj->m_body;  // Changed from getRigidBody()
+    
+    ConstraintData constraint;
+    constraint.type = ConstraintData::Motor;
+    constraint.body1 = body;
+    constraint.body2 = nullptr;
+    constraint.localX1 = lx;
+    constraint.localY1 = ly;
+    constraint.motorSpeed = speed;
+    constraint.motorTorque = 100.0;
+    
+    m_userConstraints.push_back(constraint);
+}
+
+void Demo::handleAddFixedJoint(double px, double py) {
+    DemoObject* clickedObject = findObjectAt(px, py);
+    
+    if (clickedObject != nullptr) {
+        DemoObject::ClickEvent clickEvent{};
+        clickedObject->onClick(px, py, &clickEvent);
+        
+        if (clickEvent.clicked) {
+            // Create a fixed position constraint
+            ConstraintData constraint;
+            constraint.type = ConstraintData::FixedJoint;
+            constraint.body1 = clickEvent.body;
+            constraint.body2 = nullptr;
+            constraint.localX1 = 0;
+            constraint.localY1 = 0;
+            
+            // Add to system as fixed constraint
+            // ... implementation depends on your constraint system ...
+            
+            m_userConstraints.push_back(constraint);
+        }
+    }
+}
+
+void Demo::handleDelete(double px, double py) {
+    // Find and delete constraint near click point
+    for (int i = (int)m_userConstraints.size() - 1; i >= 0; --i) {
+        // Check if click is near constraint
+        // ... implementation depends on how you want to detect proximity ...
+        
+        // Remove from system
+        if (m_userConstraints[i].visualObject != nullptr) {
+            m_userConstraints[i].visualObject->setVisible(false);
+            // Remove from m_objects and delete
+        }
+        
+        m_userConstraints.erase(m_userConstraints.begin() + i);
+    }
 }
 
 double Demo::energy(atg_scs::RigidBodySystem *system) {

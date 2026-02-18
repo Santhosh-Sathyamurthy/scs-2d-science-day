@@ -25,6 +25,8 @@ class DemoObject {
         virtual void onClick(double x, double y, ClickEvent *clickEvent);
         atg_scs::RigidBodySystem *getSystem() { return m_system; }
 
+        atg_scs::RigidBody m_body;
+
         void setVisible(bool visible) { m_visible = visible; }
         bool isVisible() const { return m_visible; }
 

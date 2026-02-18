@@ -27,6 +27,8 @@ public:
     void setCameraTarget(const ysVector &target) { m_cameraTarget = target; }
     void setCameraUp(const ysVector &up) { m_cameraUp = up; }
 
+    dbasic::TextRenderer* getTextRenderer() { return &m_textRenderer; }
+
     void drawGenerated(
         const GeometryGenerator::GeometryIndices &indices,
         int layer = ForegroundLayer);

@@ -8,6 +8,35 @@
 
 class DemoApplication;
 
+enum class InteractionMode {
+    None,           // No interaction
+    SelectDrag,     // Current behavior - drag objects with spring
+    AddSpring,      // Click two points to add spring
+    AddMotor,       // Click point to add motor
+    AddFixedJoint,  // Click point to fix in place
+    Delete          // Click to delete constraint
+};
+
+struct ConstraintData {
+    enum Type {
+        Spring,
+        Motor,
+        FixedJoint
+    };
+    
+    Type type;
+    atg_scs::RigidBody* body1;
+    atg_scs::RigidBody* body2;
+    double localX1, localY1;
+    double localX2, localY2;
+    double springK;
+    double springDamping;
+    double restLength;
+    double motorSpeed;
+    double motorTorque;
+    DemoObject* visualObject;
+};
+
 class Demo {
     public:
         Demo();
@@ -18,7 +47,7 @@ class Demo {
         void setApplication(DemoApplication *application);
 
         virtual void initialize();
-        virtual void render();
+        virtual void render(); 
         virtual void process(float dt);
         void processInput();
         double energy(atg_scs::RigidBodySystem *system = nullptr);
@@ -83,6 +112,39 @@ class Demo {
         void moveBefore(DemoObject *a, DemoObject *b);
 
         atg_scs::RigidBodySystem *m_targetSystem;
+
+        // Interaction mode system
+        InteractionMode m_interactionMode;
+        std::vector<ConstraintData> m_userConstraints;
+        
+        // For two-click operations
+        bool m_awaitingSecondClick;
+        DemoObject* m_firstClickObject;
+        double m_firstClickX, m_firstClickY;
+        
+        // Control springs for dragging
+
+        
+        // Interaction methods
+        void setInteractionMode(InteractionMode mode);
+        void handleModeSelection();
+        void handleSelectDrag(double px, double py);
+        void handleAddSpring(double px, double py);
+        void handleAddMotor(double px, double py);
+        void handleAddFixedJoint(double px, double py);
+        void handleDelete(double px, double py);
+
+        
+        // Helper methods
+        DemoObject* findObjectAt(double px, double py);
+        void createUserSpringWithBodies(atg_scs::RigidBody* body1, double lx1, double ly1,
+                               atg_scs::RigidBody* body2, double lx2, double ly2,
+                               atg_scs::RigidBodySystem* system);
+        void createUserSpring(DemoObject* obj1, double lx1, double ly1,
+                            DemoObject* obj2, double lx2, double ly2);
+        void createUserMotor(DemoObject* obj, double lx, double ly, double speed);
 };
+
+
 
 #endif /* ATG_SCS_2D_DEMO_DEMO_H */
