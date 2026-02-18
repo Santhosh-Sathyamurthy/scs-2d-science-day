@@ -14,6 +14,7 @@ enum class InteractionMode {
     AddSpring,      // Click two points to add spring
     AddMotor,       // Click point to add motor
     AddFixedJoint,  // Click point to fix in place
+    AddRod,
     Delete          // Click to delete constraint
 };
 
@@ -21,7 +22,8 @@ struct ConstraintData {
     enum Type {
         Spring,
         Motor,
-        FixedJoint
+        FixedJoint,
+        Rod
     };
     
     Type type;
@@ -34,6 +36,7 @@ struct ConstraintData {
     double restLength;
     double motorSpeed;
     double motorTorque;
+    double rodLength;
     DemoObject* visualObject;
 };
 
@@ -133,6 +136,7 @@ class Demo {
         void handleAddMotor(double px, double py);
         void handleAddFixedJoint(double px, double py);
         void handleDelete(double px, double py);
+        void handleAddRod(double px, double py);
 
         
         // Helper methods
@@ -140,6 +144,10 @@ class Demo {
         void createUserSpringWithBodies(atg_scs::RigidBody* body1, double lx1, double ly1,
                                atg_scs::RigidBody* body2, double lx2, double ly2,
                                atg_scs::RigidBodySystem* system);
+        void createUserRodWithBodies(atg_scs::RigidBody* body1, double lx1, double ly1,
+                            atg_scs::RigidBody* body2, double lx2, double ly2,
+                            atg_scs::RigidBodySystem* system);
+
         void createUserSpring(DemoObject* obj1, double lx1, double ly1,
                             DemoObject* obj2, double lx2, double ly2);
         void createUserMotor(DemoObject* obj, double lx, double ly, double speed);

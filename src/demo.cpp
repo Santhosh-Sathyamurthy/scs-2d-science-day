@@ -78,8 +78,12 @@ void Demo::render() {
             modeText = "[4] FIX JOINT"; 
             modeHelp = "Click to lock position";
             break;
+        case InteractionMode::AddRod: 
+            modeText = "[5] ADD ROD"; 
+            modeHelp = m_awaitingSecondClick ? "Click second point..." : "Click two points for rigid rod";
+            break;
         case InteractionMode::Delete: 
-            modeText = "[5] DELETE"; 
+            modeText = "[6] DELETE"; 
             modeHelp = "Click constraint to remove";
             break;
     }
@@ -138,6 +142,9 @@ void Demo::handleModeSelection() {
         setInteractionMode(InteractionMode::AddFixedJoint);
     }
     else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N5)) {
+        setInteractionMode(InteractionMode::AddRod);
+    }
+    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N6)) {
         setInteractionMode(InteractionMode::Delete);
     }
 }
@@ -187,6 +194,10 @@ void Demo::processInput() {
                 
             case InteractionMode::AddFixedJoint:
                 handleAddFixedJoint(px, py);
+                break;
+                
+            case InteractionMode::AddRod:
+                handleAddRod(px, py);
                 break;
                 
             case InteractionMode::Delete:
@@ -327,6 +338,124 @@ void Demo::createUserSpringWithBodies(atg_scs::RigidBody* body1, double lx1, dou
 void Demo::createUserSpring(DemoObject* obj1, double lx1, double ly1,
                             DemoObject* obj2, double lx2, double ly2) {
     // This is a compatibility wrapper - not used anymore
+}
+void Demo::handleAddRod(double px, double py) {
+    DemoObject* clickedObject = findObjectAt(px, py);
+    
+    if (!m_awaitingSecondClick) {
+        // First click - store it
+        if (clickedObject != nullptr) {
+            DemoObject::ClickEvent clickEvent{};
+            clickedObject->onClick(px, py, &clickEvent);
+            
+            if (clickEvent.clicked) {
+                m_firstClickObject = clickedObject;
+                m_firstClickX = px;
+                m_firstClickY = py;
+                m_awaitingSecondClick = true;
+            }
+        }
+    }
+    else {
+        // Second click - create rod
+        if (clickedObject != nullptr) {
+            DemoObject::ClickEvent event1{}, event2{};
+            m_firstClickObject->onClick(m_firstClickX, m_firstClickY, &event1);
+            clickedObject->onClick(px, py, &event2);
+            
+            if (event1.clicked && event2.clicked) {
+                double lx1, ly1, lx2, ly2;
+                event1.body->worldToLocal(event1.x, event1.y, &lx1, &ly1);
+                event2.body->worldToLocal(event2.x, event2.y, &lx2, &ly2);
+                
+                createUserRodWithBodies(
+                    event1.body, lx1, ly1,
+                    event2.body, lx2, ly2,
+                    m_firstClickObject->getSystem()
+                );
+            }
+        }
+        
+        m_awaitingSecondClick = false;
+        m_firstClickObject = nullptr;
+    }
+}
+
+void Demo::createUserRodWithBodies(atg_scs::RigidBody* body1, double lx1, double ly1,
+                                  atg_scs::RigidBody* body2, double lx2, double ly2,
+                                  atg_scs::RigidBodySystem* system) {
+    // VALIDATION
+    if (body1 == body2) return;
+    
+    // Calculate world positions
+    double wx1, wy1, wx2, wy2;
+    body1->localToWorld(lx1, ly1, &wx1, &wy1);
+    body2->localToWorld(lx2, ly2, &wx2, &wy2);
+    
+    double dx = wx2 - wx1;
+    double dy = wy2 - wy1;
+    double rodLength = std::sqrt(dx*dx + dy*dy);
+    
+    if (rodLength < 0.01) return;
+    if (body1->m == 0.0 && body2->m == 0.0) return;
+    
+    // Calculate position and angle
+    double theta = std::atan2(dy, dx);
+    double midX = (wx1 + wx2) / 2.0;
+    double midY = (wy1 + wy2) / 2.0;
+    
+    // Create the bar (rigid rod body)
+    BarObject* barObj = new BarObject();
+    barObj->m_body.p_x = midX;
+    barObj->m_body.p_y = midY;
+    barObj->m_body.theta = theta;
+    barObj->m_body.v_x = 0;
+    barObj->m_body.v_y = 0;
+    barObj->m_body.v_theta = 0;
+    barObj->configure(rodLength, 0.001);  // Length and density
+    
+    // Add bar to system
+    addObject(barObj, system);
+    
+    // Connect left end of bar to body1
+    LinkConstraint* link1 = new LinkConstraint();
+    link1->m_link.setBody1(body1);
+    link1->m_link.setBody2(&barObj->m_body);
+    link1->m_link.setLocalPosition1(lx1, ly1);
+    link1->m_link.setLocalPosition2(-rodLength/2.0, 0.0);  // Left end
+    
+    // Optional: Make the link stiffer (more rigid)
+    link1->m_link.m_ks = 500.0;  // Higher stiffness = more rigid
+    link1->m_link.m_kd = 10.0;   // Damping
+    
+    addObject(link1, system);
+    
+    // Connect right end of bar to body2
+    LinkConstraint* link2 = new LinkConstraint();
+    link2->m_link.setBody1(body2);
+    link2->m_link.setBody2(&barObj->m_body);
+    link2->m_link.setLocalPosition1(lx2, ly2);
+    link2->m_link.setLocalPosition2(rodLength/2.0, 0.0);   // Right end
+    
+    // Match stiffness
+    link2->m_link.m_ks = 500.0;
+    link2->m_link.m_kd = 10.0;
+    
+    addObject(link2, system);
+    
+    // Store constraint data
+    ConstraintData constraint;
+    constraint.type = ConstraintData::Rod;
+    constraint.body1 = body1;
+    constraint.body2 = body2;
+    constraint.localX1 = lx1;
+    constraint.localY1 = ly1;
+    constraint.localX2 = lx2;
+    constraint.localY2 = ly2;
+    constraint.rodLength = rodLength;
+    constraint.visualObject = barObj;
+    
+    m_userConstraints.push_back(constraint);
 }
 void Demo::handleAddMotor(double px, double py) {
     DemoObject* clickedObject = findObjectAt(px, py);
