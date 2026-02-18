@@ -12,6 +12,7 @@
 #include "../include/spring_mass_demo.h"
 #include "../include/triple_pendulum_demo.h"
 
+
 #include <cmath>
 #include <sstream>
 
@@ -29,6 +30,10 @@ DemoApplication::DemoApplication() {
     m_paused = true;
     m_showingStats = true;
     m_activeDemo = 0;
+
+    // Menu state
+    m_showingMenu = false;
+    m_menuSelection = 0;
 
     m_background = ysColor::srgbiToLinear(0xFFFFFF);
     m_foreground = ysColor::srgbiToLinear(0xFFFFFF);
@@ -123,6 +128,7 @@ void DemoApplication::initialize(void *instance,
     m_blobFace = m_assetManager.GetModelAsset("Blob_face");
 
     m_activeDemo = 7;
+    m_menuSelection = m_activeDemo;
 
     addDemo(new SpringDoublePendulumDemo_Eulerian);
     addDemo(new SpringDoublePendulumDemo_RK6);
@@ -146,57 +152,145 @@ void DemoApplication::run() {
         m_engine.StartFrame();
         if (!m_engine.IsOpen()) break;
 
-        if (m_engine.KeyDownEvent(ysKey::Code::Escape)) { break; }
+        if (m_engine.KeyDownEvent(ysKey::Code::Escape)) {
+            if (m_showingMenu) {
+                // Close menu first, don't quit
+                m_showingMenu = false;
+            } else {
+                break;
+            }
+        }
 
         m_displayHeight = 15.0f;
         m_uiScale = (10.0f / (m_displayHeight + 1.0f));
 
         updateScreenSizeStability();
 
-        if (m_engine.KeyDownEvent(ysKey::Code::Space) &&
-            m_engine.GetGameWindow()->IsActive()) {
-            m_paused = !m_paused;
-        }
+        // Only process gameplay keys when menu is not open
+        if (!m_showingMenu) {
+            if (m_engine.KeyDownEvent(ysKey::Code::Space) &&
+                m_engine.GetGameWindow()->IsActive()) {
+                m_paused = !m_paused;
+            }
 
-        if (m_engine.KeyDownEvent(ysKey::Code::F)) {
-            m_engine.GetGameWindow()->SetWindowStyle(
-                    ysWindow::WindowStyle::Fullscreen);
-        }
+            if (m_engine.KeyDownEvent(ysKey::Code::F)) {
+                m_engine.GetGameWindow()->SetWindowStyle(
+                        ysWindow::WindowStyle::Fullscreen);
+            }
 
-        if (m_engine.KeyDownEvent(ysKey::Code::R)) {
-            m_demos[m_activeDemo]->reset();
-            m_demos[m_activeDemo]->initialize();
-        }
+            if (m_engine.KeyDownEvent(ysKey::Code::R)) {
+                m_demos[m_activeDemo]->reset();
+                m_demos[m_activeDemo]->initialize();
+            }
 
-        if (m_engine.KeyDownEvent(ysKey::Code::V) &&
-            m_engine.GetGameWindow()->IsActive()) {
-            if (!isRecording() && readyToRecord()) {
-                startRecording();
-            } else if (isRecording()) {
-                stopRecording();
+            if (m_engine.KeyDownEvent(ysKey::Code::V) &&
+                m_engine.GetGameWindow()->IsActive()) {
+                if (!isRecording() && readyToRecord()) {
+                    startRecording();
+                } else if (isRecording()) {
+                    stopRecording();
+                }
+            }
+
+            if (isRecording() && !readyToRecord()) { stopRecording(); }
+
+            m_demos[m_activeDemo]->processInput();
+
+            if (!m_paused) {
+                m_demos[m_activeDemo]->process(1 / 60.0f);
+            } else if (m_engine.KeyDownEvent(ysKey::Code::Right)) {
+                m_demos[m_activeDemo]->process(1 / 60.0f);
+            }
+
+            if (m_engine.KeyDownEvent(ysKey::Code::S)) {
+                m_showingStats = !m_showingStats;
             }
         }
 
-        if (isRecording() && !readyToRecord()) { stopRecording(); }
+        // Tab toggles the demo selection menu
+        if (m_engine.KeyDownEvent(ysKey::Code::Tab)) {
+            m_showingMenu = !m_showingMenu;
+            if (m_showingMenu) {
+                // Sync highlight to currently active demo when opening
+                m_menuSelection = m_activeDemo;
+            }
+        }
 
-        m_demos[m_activeDemo]->processInput();
+        // Menu navigation keys
+        if (m_showingMenu) {
+            if (m_engine.KeyDownEvent(ysKey::Code::Up)) {
+                m_menuSelection =
+                    (m_menuSelection - 1 + (int)m_demos.size()) % (int)m_demos.size();
+            }
 
-        if (!m_paused) {
-            // todo: should update based on elapsed frame time
-            m_demos[m_activeDemo]->process(1 / 60.0f);
-        } else if (m_engine.KeyDownEvent(ysKey::Code::Right)) {
-            m_demos[m_activeDemo]->process(1 / 60.0f);
+            if (m_engine.KeyDownEvent(ysKey::Code::Down)) {
+                m_menuSelection =
+                    (m_menuSelection + 1) % (int)m_demos.size();
+            }
+
+            if (m_engine.KeyDownEvent(ysKey::Code::Return)) {
+                m_activeDemo = m_menuSelection;
+                m_demos[m_activeDemo]->reset();
+                m_demos[m_activeDemo]->initialize();
+                m_showingMenu = false;
+                m_paused = true;
+            }
+
+            // Mouse support
+            // These pixel values must match renderMenu() exactly
+            const float screenW        = (float)m_engine.GetScreenWidth();
+            const float screenH        = (float)m_engine.GetScreenHeight();
+            const float menuWidthPx    = 460.0f;
+            const float headerHeightPx = 60.0f;
+            const float footerHeightPx = 28.0f;
+            const float itemHeightPx   = 34.0f;
+            const float paddingPx      = 10.0f;
+            const float menuHeightPx   = headerHeightPx + footerHeightPx
+                                       + itemHeightPx * (float)m_demos.size()
+                                       + paddingPx * 2.0f;
+
+            const float menuPxLeft    = (screenW - menuWidthPx)  * 0.5f;
+            const float menuPxRight   = menuPxLeft + menuWidthPx;
+            const float menuPxBottom  = (screenH + menuHeightPx) * 0.5f;
+            const float listStartPxY  = menuPxBottom - headerHeightPx - paddingPx;
+
+            int rawMouseX = 0, rawMouseY = 0;
+            m_engine.GetMousePos(&rawMouseX, &rawMouseY);
+            const float mouseX = (float)rawMouseX;
+            const float mouseY = screenH - (float)rawMouseY;  // flip: GetMousePos Y is from bottom
+
+            // Hover - mouseY is from bottom (GetMousePos), listStartPxY is from bottom
+            if (mouseX >= menuPxLeft && mouseX <= menuPxRight) {
+                for (int i = 0; i < (int)m_demos.size(); ++i) {
+                    const float itemTop    = listStartPxY - itemHeightPx * (float)(i + 1);
+                    const float itemBottom = listStartPxY - itemHeightPx * (float)i;
+                    if (mouseY >= itemTop && mouseY <= itemBottom) {
+                        m_menuSelection = i;
+                        break;
+                    }
+                }
+            }
+
+            // Click
+            if (m_engine.ProcessMouseButtonDown(ysMouse::Button::Left) &&
+                mouseX >= menuPxLeft && mouseX <= menuPxRight) {
+                for (int i = 0; i < (int)m_demos.size(); ++i) {
+                    const float itemTop    = listStartPxY - itemHeightPx * (float)(i + 1);
+                    const float itemBottom = listStartPxY - itemHeightPx * (float)i;
+                    if (mouseY >= itemTop && mouseY <= itemBottom) {
+                        m_activeDemo = i;
+                        m_menuSelection = i;
+                        m_demos[m_activeDemo]->reset();
+                        m_demos[m_activeDemo]->initialize();
+                        m_showingMenu = false;
+                        m_paused = true;
+                        break;
+                    }
+                }
+            }
         }
 
         renderScene();
-
-        if (m_engine.KeyDownEvent(ysKey::Code::Tab)) {
-            m_activeDemo = (m_activeDemo + 1) % (int) m_demos.size();
-        }
-
-        if (m_engine.KeyDownEvent(ysKey::Code::S)) {
-            m_showingStats = !m_showingStats;
-        }
 
         m_engine.EndFrame();
 
@@ -1113,6 +1207,165 @@ void DemoApplication::renderTitle() {
     m_textRenderer.RenderText(
             (m_paused) ? "PAUSED // OKAY     " : "RUNNING // OKAY     ",
             unitsToPixels(-gridWidth / 2 + leftMargin) + 10, p_y, 26);
+
+    // Show hint that Tab opens the menu
+    m_textRenderer.RenderText(
+            "[TAB] SELECT DEMO",
+            unitsToPixels(-gridWidth / 2 + leftMargin) + 10, p_y - 30, 14);
+}
+
+void DemoApplication::renderMenu() {
+    if (!m_showingMenu) return;
+
+    // ---------------------------------------------------------------
+    // All sizes defined in pixels first, then converted to world units
+    // for geometry, or used directly as pixels for text.
+    //
+    // Screen pixel convention: x left->right, y top->down, origin top-left.
+    // World unit convention:   x left->right, y bottom->up, origin screen center.
+    //
+    // Conversions:
+    //   world_x  =  pixelsToUnits(px_x - screenW/2)
+    //   world_y  =  pixelsToUnits(screenH/2 - px_y)
+    //   px_x     =  unitsToPixels(world_x) + screenW/2
+    //   px_y     =  screenH/2 - unitsToPixels(world_y)
+    // ---------------------------------------------------------------
+
+    const float screenW = (float)m_engine.GetScreenWidth();
+    const float screenH = (float)m_engine.GetScreenHeight();
+
+    // Menu dimensions in pixels
+    const float menuWidthPx    = 460.0f;
+    const float headerHeightPx = 60.0f;
+    const float footerHeightPx = 28.0f;
+    const float itemHeightPx   = 34.0f;
+    const float paddingPx      = 10.0f;
+    const float menuHeightPx   = headerHeightPx + footerHeightPx
+                               + itemHeightPx * (float)m_demos.size()
+                               + paddingPx * 2.0f;
+
+    // Menu top-left corner in screen pixels (centered)
+    const float menuPxLeft  = (screenW - menuWidthPx)  * 0.5f;
+    const float menuPxTop   = (screenH - menuHeightPx) * 0.5f;
+    const float menuPxRight = menuPxLeft + menuWidthPx;
+
+    // Convert to world units for geometry (menu is centered so world origin = screen center)
+    const float menuWidth    = pixelsToUnits(menuWidthPx);
+    const float menuHeight   = pixelsToUnits(menuHeightPx);
+    const float headerHeight = pixelsToUnits(headerHeightPx);
+    const float itemHeight   = pixelsToUnits(itemHeightPx);
+    const float padding      = pixelsToUnits(paddingPx);
+
+    // In world units, menu is centered at (0,0)
+    // Top of menu  = +menuHeight/2
+    // Divider is headerHeight below the top
+    const float dividerWorldY = menuHeight / 2.0f - headerHeight;
+
+    // Center Y of first list item (world units, Y-up)
+    const float firstItemWorldY = dividerWorldY - padding - itemHeight * 0.5f;
+
+    // Highlight bar world Y for selected item
+    const float highlightWorldY = firstItemWorldY - itemHeight * (float)m_menuSelection;
+
+    // ---- Build geometry ----
+    GeometryGenerator::GeometryIndices fill, frame, highlightBar, divider;
+    GeometryGenerator::Line2dParameters lineParams;
+    GeometryGenerator::FrameParameters frameParams;
+
+    // Background fill
+    m_geometryGenerator.startShape();
+    lineParams.lineWidth = menuHeight;
+    lineParams.x0 = -menuWidth / 2.0f;
+    lineParams.x1 =  menuWidth / 2.0f;
+    lineParams.y0 = lineParams.y1 = 0.0f;
+    m_geometryGenerator.generateLine2d(lineParams);
+    m_geometryGenerator.endShape(&fill);
+
+    // Border frame
+    m_geometryGenerator.startShape();
+    frameParams.frameWidth  = menuWidth;
+    frameParams.frameHeight = menuHeight;
+    frameParams.x = 0.0f;
+    frameParams.y = 0.0f;
+    frameParams.lineWidth = pixelsToUnits(1.0f);
+    m_geometryGenerator.generateFrame(frameParams);
+    m_geometryGenerator.endShape(&frame);
+
+    // Divider line under header
+    m_geometryGenerator.startShape();
+    lineParams.lineWidth = pixelsToUnits(1.0f);
+    lineParams.x0 = -menuWidth / 2.0f;
+    lineParams.x1 =  menuWidth / 2.0f;
+    lineParams.y0 = lineParams.y1 = dividerWorldY;
+    m_geometryGenerator.generateLine2d(lineParams);
+    m_geometryGenerator.endShape(&divider);
+
+    // Highlight bar
+    m_geometryGenerator.startShape();
+    lineParams.lineWidth = itemHeight - pixelsToUnits(3.0f);
+    lineParams.x0 = -menuWidth / 2.0f + pixelsToUnits(3.0f);
+    lineParams.x1 =  menuWidth / 2.0f - pixelsToUnits(3.0f);
+    lineParams.y0 = lineParams.y1 = highlightWorldY;
+    m_geometryGenerator.generateLine2d(lineParams);
+    m_geometryGenerator.endShape(&highlightBar);
+
+    // ---- Draw geometry ----
+    m_shaders.ResetBrdfParameters();
+    m_shaders.SetColorReplace(true);
+    m_shaders.SetLit(false);
+    m_shaders.SetFogFar(2001);
+    m_shaders.SetFogNear(2000.0);
+    m_shaders.SetObjectTransform(ysMath::TranslationTransform(
+            ysMath::LoadVector(0.0f, 0.0f, 0.0f, 0.0f)));
+
+    m_shaders.SetBaseColor(m_shadow);
+    drawGenerated(fill, ForegroundLayer);
+
+    m_shaders.SetBaseColor(m_foreground);
+    drawGenerated(frame, ForegroundLayer);
+
+    m_shaders.SetBaseColor(m_foreground);
+    drawGenerated(divider, ForegroundLayer);
+
+    m_shaders.SetBaseColor(ysMath::LoadVector(0.28f, 0.28f, 0.28f, 1.0f));
+    drawGenerated(highlightBar, ForegroundLayer);
+
+    // ---- Text ----
+    // The text renderer uses the same coords as renderTitle():
+    // x = unitsToPixels(world_x),  y = unitsToPixels(world_y)
+    // where world origin is screen center, Y increases upward.
+    // So to go DOWN the screen we SUBTRACT from y.
+
+    const float textX = unitsToPixels(-menuWidth / 2.0f) + 14.0f;
+
+    // Start near the top of the menu
+    float textY = unitsToPixels(menuHeight / 2.0f) - 30.0f;
+    m_textRenderer.RenderText("SELECT DEMO", textX, textY, 28.0f);
+
+    textY -= 26.0f;
+    m_textRenderer.RenderText(
+            "[UP][DOWN] NAVIGATE   [ENTER] LOAD   [TAB/ESC] CLOSE",
+            textX, textY, 11.0f);
+
+    // List items: start just below the divider
+    // dividerWorldY in world units, convert to text pixel y then step downward
+    float itemTextY = unitsToPixels(dividerWorldY) - paddingPx - 14.0f;
+
+    for (int i = 0; i < (int)m_demos.size(); ++i) {
+        const bool isActive   = (i == m_activeDemo);
+        const bool isSelected = (i == m_menuSelection);
+
+        std::string label = (isActive ? "> " : "  ") + m_demos[i]->getName();
+
+        if (isSelected) {
+            m_textRenderer.RenderText(label, textX,     itemTextY, 18.0f);
+            m_textRenderer.RenderText(label, textX + 1, itemTextY, 18.0f);
+        } else {
+            m_textRenderer.RenderText(label, textX, itemTextY, 15.0f);
+        }
+
+        itemTextY -= itemHeightPx;  // step downward in text coords
+    }
 }
 
 void DemoApplication::drawLines(ysVector2 *p0, ysVector2 *p1, int n0, int n1) {
@@ -1224,6 +1477,7 @@ void DemoApplication::renderScene() {
 
     m_demos[m_activeDemo]->render();
     renderTitle();
+    renderMenu();   // Draw menu overlay on top of everything
 
     m_engine.GetDevice()->EditBufferDataRange(
             m_geometryVertexBuffer,
@@ -1244,7 +1498,6 @@ void DemoApplication::startRecording() {
 #ifdef ATG_SCS_DEMO_ENABLE_VIDEO_CAPTURE
     atg_dtv::Encoder::VideoSettings settings{};
 
-    // Output filename
     settings.fname = "scs_demo_video_capture.mp4";
     settings.inputWidth = m_engine.GetScreenWidth();
     settings.inputHeight = m_engine.GetScreenHeight();

@@ -14,6 +14,7 @@ public:
     static constexpr int BackgroundLayer = 0;
     static constexpr int ForegroundLayer = 1;
 
+
 public:
     DemoApplication();
     virtual ~DemoApplication();
@@ -28,7 +29,7 @@ public:
 
     void drawGenerated(
         const GeometryGenerator::GeometryIndices &indices,
-        int layer= ForegroundLayer);
+        int layer = ForegroundLayer);
 
     void drawBar(float x, float y, float theta, float length, float width_px = 20.0f);
     void drawRoundedFrame(
@@ -61,6 +62,7 @@ public:
             bool drawTrack = true);
     void drawMotor(float x, float y, float theta, float radius, bool positive);
     void renderTitle();
+    void renderMenu();
     void drawLines(ysVector2 *p0, ysVector2 *p1, int n0, int n1);
     void drawBlob(float x, float y);
 
@@ -73,7 +75,7 @@ public:
 
     void addDemo(Demo *demo);
 
-    dbasic::DeltaEngine *getEngine() { return &m_engine;  }
+    dbasic::DeltaEngine *getEngine() { return &m_engine; }
     GeometryGenerator *getGenerator() { return &m_geometryGenerator; }
 
 protected:
@@ -104,6 +106,10 @@ protected:
     bool m_paused;
     bool m_showingStats;
 
+    // Demo selection menu
+    bool m_showingMenu;
+    int m_menuSelection;
+
     ysVector m_background;
     ysVector m_foreground;
     ysVector m_shadow;
@@ -124,7 +130,7 @@ protected:
     bool readyToRecord();
     void stopRecording();
     void recordFrame();
-    bool isRecording() const { return m_recording;  }
+    bool isRecording() const { return m_recording; }
 
     static constexpr int ScreenResolutionHistoryLength = 5;
     int m_screenResolution[ScreenResolutionHistoryLength][2];

@@ -24,6 +24,7 @@ cbuffer ObjectVariables : register(b1) {
 	float2 TexScale;
 };
 
+
 VS_OUTPUT VS_CONSOLE(VS_INPUT_CONSOLE input) {
 	float4 inputPos = float4(input.Pos, -1.0f, 1.0f);
 	
@@ -42,7 +43,9 @@ VS_OUTPUT VS_CONSOLE(VS_INPUT_CONSOLE input) {
 	return output;
 }
 
+
 float4 PS_CONSOLE(VS_OUTPUT input) : SV_Target {
 	float a = txDiffuse.Sample(samLinear, input.TexCoord).r;
 	return MulCol * float4(1.0, 1.0, 1.0, a) * input.Color;
 }
+
