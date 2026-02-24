@@ -16,6 +16,13 @@ void LinkConstraint::initialize(atg_scs::RigidBodySystem *system) {
     system->addConstraint(&m_link);
 }
 
+void LinkConstraint::deinitialize() {
+    if (m_system != nullptr) {
+        m_system->removeConstraint(&m_link);
+    }
+    DemoObject::deinitialize();
+}
+
 void LinkConstraint::reset() {
     DemoObject::reset();
 }

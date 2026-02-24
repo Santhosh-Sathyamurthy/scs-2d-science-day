@@ -17,6 +17,13 @@ void SpringObject::initialize(atg_scs::RigidBodySystem *system) {
     system->addForceGenerator(&m_spring);
 }
 
+void SpringObject::deinitialize() {
+    if (m_system) {
+        m_system->removeForceGenerator(&m_spring);
+    }
+    DemoObject::deinitialize();
+}
+
 void SpringObject::reset() {
     DemoObject::reset();
 }

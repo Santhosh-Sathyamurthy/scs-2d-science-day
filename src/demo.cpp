@@ -70,10 +70,6 @@ void Demo::render() {
             modeText = "[2] ADD SPRING"; 
             modeHelp = m_awaitingSecondClick ? "Click second point..." : "Click two points to connect";
             break;
-        case InteractionMode::AddMotor: 
-            modeText = "[3] ADD MOTOR"; 
-            modeHelp = "Click point on object";
-            break;
         case InteractionMode::AddFixedJoint: 
             modeText = "[4] FIX JOINT"; 
             modeHelp = "Click to lock position";
@@ -136,15 +132,12 @@ void Demo::handleModeSelection() {
         setInteractionMode(InteractionMode::AddSpring);
     }
     else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N3)) {
-        setInteractionMode(InteractionMode::AddMotor);
-    }
-    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N4)) {
         setInteractionMode(InteractionMode::AddFixedJoint);
     }
-    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N5)) {
+    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N4)) {
         setInteractionMode(InteractionMode::AddRod);
     }
-    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N6)) {
+    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N5)) {
         setInteractionMode(InteractionMode::Delete);
     }
 }
@@ -187,11 +180,7 @@ void Demo::processInput() {
             case InteractionMode::AddSpring:
                 handleAddSpring(px, py);
                 break;
-                
-            case InteractionMode::AddMotor:
-                handleAddMotor(px, py);
-                break;
-                
+
             case InteractionMode::AddFixedJoint:
                 handleAddFixedJoint(px, py);
                 break;
@@ -457,46 +446,8 @@ void Demo::createUserRodWithBodies(atg_scs::RigidBody* body1, double lx1, double
     
     m_userConstraints.push_back(constraint);
 }
-void Demo::handleAddMotor(double px, double py) {
-    DemoObject* clickedObject = findObjectAt(px, py);
-    
-    if (clickedObject != nullptr) {
-        DemoObject::ClickEvent clickEvent{};
-        clickedObject->onClick(px, py, &clickEvent);
-        
-        if (clickEvent.clicked) {
-            // Create motor constraint data
-            ConstraintData constraint;
-            constraint.type = ConstraintData::Motor;
-            constraint.body1 = clickEvent.body;
-            constraint.body2 = nullptr;
-            
-            double lx, ly;
-            clickEvent.body->worldToLocal(px, py, &lx, &ly);
-            constraint.localX1 = lx;
-            constraint.localY1 = ly;
-            constraint.motorSpeed = 2.0;
-            constraint.motorTorque = 100.0;
-            
-            m_userConstraints.push_back(constraint);
-        }
-    }
-}
 
-void Demo::createUserMotor(DemoObject* obj, double lx, double ly, double speed) {
-    atg_scs::RigidBody* body = &obj->m_body;  // Changed from getRigidBody()
-    
-    ConstraintData constraint;
-    constraint.type = ConstraintData::Motor;
-    constraint.body1 = body;
-    constraint.body2 = nullptr;
-    constraint.localX1 = lx;
-    constraint.localY1 = ly;
-    constraint.motorSpeed = speed;
-    constraint.motorTorque = 100.0;
-    
-    m_userConstraints.push_back(constraint);
-}
+
 
 void Demo::handleAddFixedJoint(double px, double py) {
     DemoObject* clickedObject = findObjectAt(px, py);
@@ -523,18 +474,76 @@ void Demo::handleAddFixedJoint(double px, double py) {
 }
 
 void Demo::handleDelete(double px, double py) {
-    // Find and delete constraint near click point
     for (int i = (int)m_userConstraints.size() - 1; i >= 0; --i) {
-        // Check if click is near constraint
-        // ... implementation depends on how you want to detect proximity ...
+        ConstraintData& constraint = m_userConstraints[i];
         
-        // Remove from system
-        if (m_userConstraints[i].visualObject != nullptr) {
-            m_userConstraints[i].visualObject->setVisible(false);
-            // Remove from m_objects and delete
+        // --- Proximity check ---
+        bool shouldDelete = false;
+
+        if (constraint.type == ConstraintData::Spring && constraint.visualObject != nullptr) {
+            // Check proximity to the spring's midpoint in world space
+            double wx1, wy1, wx2, wy2;
+            constraint.body1->localToWorld(constraint.localX1, constraint.localY1, &wx1, &wy1);
+            constraint.body2->localToWorld(constraint.localX2, constraint.localY2, &wx2, &wy2);
+            double midX = (wx1 + wx2) / 2.0;
+            double midY = (wy1 + wy2) / 2.0;
+            double dx = px - midX, dy = py - midY;
+            if (std::sqrt(dx*dx + dy*dy) < 0.5) shouldDelete = true;
         }
-        
+        else if (constraint.type == ConstraintData::Rod && constraint.visualObject != nullptr) {
+            BarObject* bar = static_cast<BarObject*>(constraint.visualObject);
+            double dx = px - bar->m_body.p_x;
+            double dy = py - bar->m_body.p_y;
+            if (std::sqrt(dx*dx + dy*dy) < 0.5) shouldDelete = true;
+        }
+
+        if (!shouldDelete) continue;
+
+        // --- Remove all associated DemoObjects from m_objects and delete them ---
+        // For a rod, the visualObject is the BarObject, but we also need to remove
+        // the two LinkConstraints that were added immediately after it in m_objects.
+        // We collect them by scanning m_objects for objects added after the visual one.
+
+        auto removeFromObjects = [&](DemoObject* obj) {
+            if (obj == nullptr) return;
+            obj->deinitialize(); // remove from physics system
+            auto it = std::find(m_objects.begin(), m_objects.end(), obj);
+            if (it != m_objects.end()) {
+                m_objects.erase(it);
+            }
+            delete obj;
+        };
+
+        if (constraint.type == ConstraintData::Rod) {
+            // The rod was added as: barObj, link1, link2 consecutively.
+            // Find the bar's index and grab the two LinkConstraints after it.
+            auto it = std::find(m_objects.begin(), m_objects.end(), constraint.visualObject);
+            if (it != m_objects.end()) {
+                // Collect the bar + the two links after it before erasing
+                DemoObject* barObj  = *it;
+                DemoObject* link1   = (it + 1 != m_objects.end()) ? *(it + 1) : nullptr;
+                DemoObject* link2   = (it + 2 != m_objects.end()) ? *(it + 2) : nullptr;
+
+                // Deinitialize and erase in reverse order to keep iterators valid
+                auto eraseAndDelete = [&](DemoObject* obj) {
+                    if (!obj) return;
+                    obj->deinitialize();
+                    auto jt = std::find(m_objects.begin(), m_objects.end(), obj);
+                    if (jt != m_objects.end()) m_objects.erase(jt);
+                    delete obj;
+                };
+
+                eraseAndDelete(link2);
+                eraseAndDelete(link1);
+                eraseAndDelete(barObj);
+            }
+        }
+        else {
+            removeFromObjects(constraint.visualObject);
+        }
+
         m_userConstraints.erase(m_userConstraints.begin() + i);
+        break; // Only delete one constraint per click
     }
 }
 

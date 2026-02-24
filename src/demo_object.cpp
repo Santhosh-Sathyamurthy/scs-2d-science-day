@@ -13,6 +13,9 @@ void DemoObject::initialize(atg_scs::RigidBodySystem *system) {
     m_system = system;
 }
 
+void DemoObject::deinitialize() {
+    m_system = nullptr;
+}
 void DemoObject::reset() {
     /* void */
 }

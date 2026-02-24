@@ -17,6 +17,12 @@ void BarObject::initialize(atg_scs::RigidBodySystem *system) {
 
     system->addRigidBody(&m_body);
 }
+void BarObject::deinitialize() {
+    if (m_system != nullptr) {
+        m_system->removeRigidBody(&m_body);
+    }
+    DemoObject::deinitialize();
+}
 
 void BarObject::reset() {
     DemoObject::reset();

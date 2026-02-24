@@ -9,6 +9,7 @@ class BarObject : public DemoObject {
         virtual ~BarObject();
 
         virtual void initialize(atg_scs::RigidBodySystem *system);
+        virtual void deinitialize();
         virtual void reset();
         virtual void render(DemoApplication *app);
         virtual void process(float dt, DemoApplication *app);
