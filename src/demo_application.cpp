@@ -166,6 +166,40 @@ void DemoApplication::run() {
 
         updateScreenSizeStability();
 
+        // Intercept toolbar key shortcuts [1]-[4] here so demo.cpp's old
+        // 5-button mapping ([3]=FIX,[4]=ROD,[5]=DELETE) doesn't conflict.
+        if (!m_showingMenu && !m_demos.empty()) {
+            bool keyHandled = false;
+            if (m_engine.KeyDownEvent(ysKey::Code::N1)) {
+                m_demos[m_activeDemo]->setInteractionMode(InteractionMode::SelectDrag);
+                m_paused = false; keyHandled = true;
+            } else if (m_engine.KeyDownEvent(ysKey::Code::N2)) {
+                m_demos[m_activeDemo]->setInteractionMode(InteractionMode::AddSpring);
+                keyHandled = true;
+            } else if (m_engine.KeyDownEvent(ysKey::Code::N3)) {
+                m_demos[m_activeDemo]->setInteractionMode(InteractionMode::AddRod);
+                keyHandled = true;
+            } else if (m_engine.KeyDownEvent(ysKey::Code::N4)) {
+                m_demos[m_activeDemo]->setInteractionMode(InteractionMode::Delete);
+                m_paused = false; keyHandled = true;
+            }
+            (void)keyHandled;
+        }
+
+        // Check if mouse is over toolbar — position only, no event consumption.
+        // If the user clicks on a toolbar button, we handle the mode switch and
+        // suppress processInput so the demo doesn't also react to the same click.
+        bool toolbarConsumedClick = false;
+        if (!m_showingMenu) {
+            int rawMx = 0, rawMy = 0;
+            m_engine.GetMousePos(&rawMx, &rawMy);
+            const bool mouseOverToolbar = isMouseOverToolbar((float)rawMx, (float)rawMy);
+            if (mouseOverToolbar && m_engine.ProcessMouseButtonDown(ysMouse::Button::Left)) {
+                handleToolbarClick((float)rawMx, (float)rawMy);
+                toolbarConsumedClick = true;
+            }
+        }
+
         // Only process gameplay keys when menu is not open
         if (!m_showingMenu) {
             if (m_engine.KeyDownEvent(ysKey::Code::Space) &&
@@ -194,7 +228,38 @@ void DemoApplication::run() {
 
             if (isRecording() && !readyToRecord()) { stopRecording(); }
 
-            m_demos[m_activeDemo]->processInput();
+            if (!toolbarConsumedClick) {
+                m_demos[m_activeDemo]->processInput();
+            }
+
+            // Auto-resume when keyboard shortcut switches back to drag/delete mode
+            if (!toolbarConsumedClick) {
+                const InteractionMode curMode =
+                    m_demos[m_activeDemo]->getInteractionMode();
+                if (curMode == InteractionMode::SelectDrag ||
+                    curMode == InteractionMode::Delete) {
+                    // Only un-pause if we were paused due to adding mode
+                    // (don't override explicit user pause via Space)
+                    // We can't distinguish, so only auto-resume on key [1] or [5]
+                    if (m_engine.KeyDownEvent(ysKey::Code::N1) ||
+                        m_engine.KeyDownEvent(ysKey::Code::N4)) {
+                        m_paused = false;
+                    }
+                }
+            }
+
+            // Always pause in constraint-adding modes to prevent sparse_matrix
+            // dimension assertion. User presses Space to resume after switching
+            // back to DRAG mode.
+            {
+                const InteractionMode curMode =
+                    m_demos[m_activeDemo]->getInteractionMode();
+                if (curMode == InteractionMode::AddSpring    ||
+                    curMode == InteractionMode::AddRod       ||
+                    curMode == InteractionMode::AddFixedJoint) {
+                    m_paused = true;
+                }
+            }
 
             if (!m_paused) {
                 m_demos[m_activeDemo]->process(1 / 60.0f);
@@ -211,7 +276,6 @@ void DemoApplication::run() {
         if (m_engine.KeyDownEvent(ysKey::Code::Tab)) {
             m_showingMenu = !m_showingMenu;
             if (m_showingMenu) {
-                // Sync highlight to currently active demo when opening
                 m_menuSelection = m_activeDemo;
             }
         }
@@ -1477,7 +1541,8 @@ void DemoApplication::renderScene() {
 
     m_demos[m_activeDemo]->render();
     renderTitle();
-    renderMenu();   // Draw menu overlay on top of everything
+    renderMenu();
+    renderToolbar();   // Draw menu overlay on top of everything
 
     m_engine.GetDevice()->EditBufferDataRange(
             m_geometryVertexBuffer,
@@ -1564,4 +1629,195 @@ void DemoApplication::addDemo(Demo *demo) {
 
     demo->setApplication(this);
     demo->initialize();
+}
+
+// ─── Toolbar ──────────────────────────────────────────────────────────────────
+// 4 tools on the right edge, vertically centered.
+// Pixel-art icons, active = white fill/dark icon, inactive = dark fill/white icon.
+// ──────────────────────────────────────────────────────────────────────────────
+
+static const InteractionMode kToolbarModes[] = {
+    InteractionMode::SelectDrag,
+    InteractionMode::AddSpring,
+    InteractionMode::AddRod,
+    InteractionMode::Delete,
+};
+static const char* kToolbarKeys[]   = { "[1]", "[2]", "[3]", "[4]" };
+static const char* kToolbarLabels[] = { "DRAG", "SPRING", "ROD", "DELETE" };
+static constexpr int kToolbarCount  = 4;
+
+void DemoApplication::getToolbarButtonRect(int i, float *x, float *y,
+                                           float *w, float *h) const {
+    const float screenW = (float)m_engine.GetScreenWidth();
+    const float screenH = (float)m_engine.GetScreenHeight();
+    *w = ToolbarBtnSize;
+    *h = ToolbarBtnSize;
+    *x = screenW - ToolbarBtnSize - ToolbarPadding;
+    const float totalH = (float)kToolbarCount * ToolbarBtnSize
+                       + (float)(kToolbarCount - 1) * ToolbarPadding;
+    const float startY = (screenH - totalH) * 0.5f;
+    *y = startY + (float)i * (ToolbarBtnSize + ToolbarPadding);
+}
+
+bool DemoApplication::isMouseOverToolbar(float mouseX, float mouseY) const {
+    if (m_demos.empty()) return false;
+    for (int i = 0; i < kToolbarCount; ++i) {
+        float bx, by, bw, bh;
+        getToolbarButtonRect(i, &bx, &by, &bw, &bh);
+        if (mouseX >= bx && mouseX <= bx + bw &&
+            mouseY >= by && mouseY <= by + bh)
+            return true;
+    }
+    return false;
+}
+
+void DemoApplication::handleToolbarClick(float mouseX, float mouseY) {
+    if (m_demos.empty()) return;
+    for (int i = 0; i < kToolbarCount; ++i) {
+        float bx, by, bw, bh;
+        getToolbarButtonRect(i, &bx, &by, &bw, &bh);
+        if (mouseX >= bx && mouseX <= bx + bw &&
+            mouseY >= by && mouseY <= by + bh) {
+            m_demos[m_activeDemo]->setInteractionMode(kToolbarModes[i]);
+            if (kToolbarModes[i] == InteractionMode::SelectDrag ||
+                kToolbarModes[i] == InteractionMode::Delete)
+                m_paused = false;
+            break;
+        }
+    }
+}
+
+void DemoApplication::renderToolbar() {
+    if (m_demos.empty()) return;
+
+    const InteractionMode activeMode = m_demos[m_activeDemo]->getInteractionMode();
+    const float screenW = (float)m_engine.GetScreenWidth();
+    const float screenH = (float)m_engine.GetScreenHeight();
+
+    // Background panel behind all buttons
+    {
+        float bx0, by0, bw, bh;
+        getToolbarButtonRect(0, &bx0, &by0, &bw, &bh);
+        float bxL, byL, bwL, bhL;
+        getToolbarButtonRect(kToolbarCount - 1, &bxL, &byL, &bwL, &bhL);
+
+        const float pad   = ToolbarPadding;
+        const float pxX   = bx0 - pad;
+        const float pxY   = by0 - pad;
+        const float pxW   = bw  + pad * 2.0f;
+        const float pxH   = (byL + bhL) - by0 + pad * 2.0f;
+        const float pcxPx = pxX + pxW * 0.5f;
+        const float pcyPx = pxY + pxH * 0.5f;
+        const float pwW   = pixelsToUnits(pxW);
+        const float pwH   = pixelsToUnits(pxH);
+        const float pwX   = pixelsToUnits(pcxPx - screenW * 0.5f);
+        const float pwY   = pixelsToUnits(screenH * 0.5f - pcyPx);
+
+        GeometryGenerator::GeometryIndices panelFill, panelFrame;
+        GeometryGenerator::Line2dParameters lp;
+        GeometryGenerator::FrameParameters  fp;
+
+        m_geometryGenerator.startShape();
+        lp.lineWidth = pwH; lp.x0 = -pwW*0.5f; lp.x1 = pwW*0.5f; lp.y0 = lp.y1 = 0;
+        m_geometryGenerator.generateLine2d(lp);
+        m_geometryGenerator.endShape(&panelFill);
+
+        m_geometryGenerator.startShape();
+        fp.frameWidth = pwW; fp.frameHeight = pwH; fp.x = fp.y = 0;
+        fp.lineWidth = pixelsToUnits(1.0f);
+        m_geometryGenerator.generateFrame(fp);
+        m_geometryGenerator.endShape(&panelFrame);
+
+        m_shaders.ResetBrdfParameters();
+        m_shaders.SetColorReplace(true);
+        m_shaders.SetLit(false);
+        m_shaders.SetFogFar(2001); m_shaders.SetFogNear(2000.0);
+        m_shaders.SetObjectTransform(ysMath::TranslationTransform(
+            ysMath::LoadVector(pwX, pwY, 0.0f, 0.0f)));
+        m_shaders.SetBaseColor(m_shadow);
+        drawGenerated(panelFill, ForegroundLayer);
+        m_shaders.SetBaseColor(ysMath::LoadVector(0.20f, 0.20f, 0.20f, 1.0f));
+        drawGenerated(panelFrame, ForegroundLayer);
+    }
+
+    // Each button
+    for (int i = 0; i < kToolbarCount; ++i) {
+        float bx, by, bw, bh;
+        getToolbarButtonRect(i, &bx, &by, &bw, &bh);
+
+        const bool isActive = (kToolbarModes[i] == activeMode);
+        const float cxPx = bx + bw * 0.5f;
+        const float cyPx = by + bh * 0.5f;
+        const float wX   = pixelsToUnits(cxPx - screenW * 0.5f);
+        const float wY   = pixelsToUnits(screenH * 0.5f - cyPx);
+        const float wW   = pixelsToUnits(bw);
+        const float wH   = pixelsToUnits(bh);
+
+        // Button fill
+        GeometryGenerator::GeometryIndices btnFill, btnFrame;
+        GeometryGenerator::Line2dParameters lp;
+        GeometryGenerator::FrameParameters  fp;
+
+        m_geometryGenerator.startShape();
+        lp.lineWidth = wH - pixelsToUnits(4.0f);
+        lp.x0 = -wW*0.5f + pixelsToUnits(2.0f);
+        lp.x1 =  wW*0.5f - pixelsToUnits(2.0f);
+        lp.y0 = lp.y1 = 0;
+        m_geometryGenerator.generateLine2d(lp);
+        m_geometryGenerator.endShape(&btnFill);
+
+        // Button border — thicker when active
+        m_geometryGenerator.startShape();
+        fp.frameWidth  = wW - pixelsToUnits(4.0f);
+        fp.frameHeight = wH - pixelsToUnits(4.0f);
+        fp.x = fp.y    = 0;
+        fp.lineWidth   = pixelsToUnits(isActive ? 2.5f : 1.0f);
+        m_geometryGenerator.generateFrame(fp);
+        m_geometryGenerator.endShape(&btnFrame);
+
+        m_shaders.ResetBrdfParameters();
+        m_shaders.SetColorReplace(true);
+        m_shaders.SetLit(false);
+        m_shaders.SetFogFar(2001); m_shaders.SetFogNear(2000.0);
+        m_shaders.SetObjectTransform(ysMath::TranslationTransform(
+            ysMath::LoadVector(wX, wY, 0.0f, 0.0f)));
+
+        const ysVector fillColor  = isActive
+            ? m_foreground
+            : ysMath::LoadVector(0.06f, 0.06f, 0.06f, 1.0f);
+        const ysVector iconColor  = isActive ? m_shadow : m_foreground;
+        const ysVector frameColor = isActive
+            ? m_foreground
+            : ysMath::LoadVector(0.30f, 0.30f, 0.30f, 1.0f);
+
+        m_shaders.SetBaseColor(fillColor);
+        drawGenerated(btnFill, ForegroundLayer);
+        m_shaders.SetBaseColor(frameColor);
+        drawGenerated(btnFrame, ForegroundLayer);
+
+
+        // Text centered in button: key number on top, tool name below
+        const float tX    = unitsToPixels(wX - wW * 0.5f) + 6.0f;
+        const float topWY = wY + wH * 0.5f;
+        const float keyY  = unitsToPixels(topWY) - 18.0f;
+        const float lblY  = unitsToPixels(topWY) - 36.0f;
+
+        m_textRenderer.RenderText(kToolbarKeys[i],   tX, keyY, 13.0f);
+        m_textRenderer.RenderText(kToolbarLabels[i], tX, lblY, 11.0f);
+    }
+
+    // Hint below toolbar when awaiting second click
+    const InteractionMode mode = m_demos[m_activeDemo]->getInteractionMode();
+    if (mode == InteractionMode::AddSpring || mode == InteractionMode::AddRod) {
+        float bx, by, bw, bh;
+        getToolbarButtonRect(kToolbarCount - 1, &bx, &by, &bw, &bh);
+        const float hintPxY = by + bh + ToolbarPadding * 2.0f;
+        const float hWY = pixelsToUnits(screenH * 0.5f - (hintPxY + 10.0f));
+        const float hWX = pixelsToUnits(bx + bw * 0.5f - screenW * 0.5f);
+        const float tX  = unitsToPixels(hWX - pixelsToUnits(bw * 0.5f)) + 2.0f;
+        const float tY  = unitsToPixels(hWY);
+        m_textRenderer.RenderText("PAUSED",  tX, tY,          10.0f);
+        m_textRenderer.RenderText("CLICK",   tX, tY - 12.0f,  10.0f);
+        m_textRenderer.RenderText("2ND PT",  tX, tY - 24.0f,  10.0f);
+    }
 }

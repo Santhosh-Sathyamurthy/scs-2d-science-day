@@ -14,7 +14,6 @@ public:
     static constexpr int BackgroundLayer = 0;
     static constexpr int ForegroundLayer = 1;
 
-
 public:
     DemoApplication();
     virtual ~DemoApplication();
@@ -27,44 +26,27 @@ public:
     void setCameraTarget(const ysVector &target) { m_cameraTarget = target; }
     void setCameraUp(const ysVector &up) { m_cameraUp = up; }
 
-    dbasic::TextRenderer* getTextRenderer() { return &m_textRenderer; }
-
     void drawGenerated(
         const GeometryGenerator::GeometryIndices &indices,
         int layer = ForegroundLayer);
 
     void drawBar(float x, float y, float theta, float length, float width_px = 20.0f);
-    void drawRoundedFrame(
-            float x,
-            float y,
-            float width,
-            float height,
-            float thickness,
-            float cornerRadius);
+    void drawRoundedFrame(float x, float y, float width, float height,
+                          float thickness, float cornerRadius);
     void drawGrid();
     void drawFixedPositionConstraint(float x, float y, float angle);
     void drawCursor(float x, float y);
-    void drawSpring(
-            float x0,
-            float y0,
-            float x1,
-            float y1,
-            int coils,
-            float radius = 0.5f);
+    void drawSpring(float x0, float y0, float x1, float y1,
+                    int coils, float radius = 0.5f);
     void drawDisk(float x, float y, float theta, float radius);
-    void drawLineConstraint(
-            float x,
-            float y,
-            float dx,
-            float dy,
-            float roller_x,
-            float roller_y,
-            float length,
-            float sliderLength,
-            bool drawTrack = true);
+    void drawLineConstraint(float x, float y, float dx, float dy,
+                            float roller_x, float roller_y,
+                            float length, float sliderLength,
+                            bool drawTrack = true);
     void drawMotor(float x, float y, float theta, float radius, bool positive);
     void renderTitle();
     void renderMenu();
+    void renderToolbar();
     void drawLines(ysVector2 *p0, ysVector2 *p1, int n0, int n1);
     void drawBlob(float x, float y);
 
@@ -72,25 +54,34 @@ public:
     float unitsToPixels(float units) const;
     void getGridFrameSize(float *w, float *h) const;
 
-    int getScreenWidth() const { return m_engine.GetScreenWidth(); }
+    int getScreenWidth()  const { return m_engine.GetScreenWidth();  }
     int getScreenHeight() const { return m_engine.GetScreenHeight(); }
 
     void addDemo(Demo *demo);
 
-    dbasic::DeltaEngine *getEngine() { return &m_engine; }
-    GeometryGenerator *getGenerator() { return &m_geometryGenerator; }
+    dbasic::DeltaEngine   *getEngine()       { return &m_engine; }
+    GeometryGenerator     *getGenerator()    { return &m_geometryGenerator; }
+    dbasic::TextRenderer  *getTextRenderer() { return &m_textRenderer; }
 
 protected:
     void renderScene();
+    void handleToolbarClick(float mouseX, float mouseY);
+    bool isMouseOverToolbar(float mouseX, float mouseY) const;
+    void getToolbarButtonRect(int i, float *x, float *y, float *w, float *h) const;
 
-    dbasic::ShaderSet m_shaderSet;
+    // Toolbar layout (screen pixels)
+    static constexpr float ToolbarBtnSize   = 70.0f;
+    static constexpr float ToolbarPadding   =  8.0f;
+
+
+    dbasic::ShaderSet     m_shaderSet;
     dbasic::DefaultShaders m_shaders;
 
     float m_displayHeight;
     float m_uiScale;
 
-    dbasic::DeltaEngine m_engine;
-    dbasic::AssetManager m_assetManager;
+    dbasic::DeltaEngine   m_engine;
+    dbasic::AssetManager  m_assetManager;
 
     ysVector m_cameraPosition;
     ysVector m_cameraTarget;
@@ -103,14 +94,13 @@ protected:
 
     GeometryGenerator m_geometryGenerator;
 
-    int m_activeDemo;
+    int  m_activeDemo;
     std::vector<Demo *> m_demos;
     bool m_paused;
     bool m_showingStats;
 
-    // Demo selection menu
     bool m_showingMenu;
-    int m_menuSelection;
+    int  m_menuSelection;
 
     ysVector m_background;
     ysVector m_foreground;
@@ -135,13 +125,13 @@ protected:
     bool isRecording() const { return m_recording; }
 
     static constexpr int ScreenResolutionHistoryLength = 5;
-    int m_screenResolution[ScreenResolutionHistoryLength][2];
-    int m_screenResolutionIndex;
+    int  m_screenResolution[ScreenResolutionHistoryLength][2];
+    int  m_screenResolutionIndex;
     bool m_recording;
 
 #ifdef ATG_SCS_DEMO_ENABLE_VIDEO_CAPTURE
     atg_dtv::Encoder m_encoder;
-#endif /* ATG_SCS_DEMO_ENABLE_VIDEO_CAPTURE */
+#endif
 };
 
 #endif /* ATG_SCS_2D_DEMO_DEMO_APPLICATION_H */

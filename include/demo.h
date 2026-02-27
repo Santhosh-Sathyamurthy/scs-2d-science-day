@@ -60,6 +60,10 @@ class Demo {
         float getConstraintEvalMicroseconds() const { return m_constraintEvalMicroseconds; }
         float getConstraintSolveMicroseconds() const { return m_constraintSolveMicroseconds; }
 
+        // Interaction mode - public so toolbar can read/set it
+        void setInteractionMode(InteractionMode mode);
+        InteractionMode getInteractionMode() const { return m_interactionMode; }
+
         template <typename T>
         T *createObject(atg_scs::RigidBodySystem *system) {
             T *newObject = new T;
@@ -112,7 +116,7 @@ class Demo {
 
         atg_scs::RigidBodySystem *m_targetSystem;
 
-        // Interaction mode system
+        // Interaction mode state
         InteractionMode m_interactionMode;
         std::vector<ConstraintData> m_userConstraints;
         
@@ -120,12 +124,7 @@ class Demo {
         bool m_awaitingSecondClick;
         DemoObject* m_firstClickObject;
         double m_firstClickX, m_firstClickY;
-        
-        // Control springs for dragging
 
-        
-        // Interaction methods
-        void setInteractionMode(InteractionMode mode);
         void handleModeSelection();
         void handleSelectDrag(double px, double py);
         void handleAddSpring(double px, double py);
@@ -133,8 +132,6 @@ class Demo {
         void handleDelete(double px, double py);
         void handleAddRod(double px, double py);
 
-        
-        // Helper methods
         DemoObject* findObjectAt(double px, double py);
         void createUserSpringWithBodies(atg_scs::RigidBody* body1, double lx1, double ly1,
                                atg_scs::RigidBody* body2, double lx2, double ly2,
@@ -142,11 +139,8 @@ class Demo {
         void createUserRodWithBodies(atg_scs::RigidBody* body1, double lx1, double ly1,
                             atg_scs::RigidBody* body2, double lx2, double ly2,
                             atg_scs::RigidBodySystem* system);
-
         void createUserSpring(DemoObject* obj1, double lx1, double ly1,
                             DemoObject* obj2, double lx2, double ly2);
 };
-
-
 
 #endif /* ATG_SCS_2D_DEMO_DEMO_H */

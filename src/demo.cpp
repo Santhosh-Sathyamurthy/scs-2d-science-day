@@ -132,12 +132,9 @@ void Demo::handleModeSelection() {
         setInteractionMode(InteractionMode::AddSpring);
     }
     else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N3)) {
-        setInteractionMode(InteractionMode::AddFixedJoint);
-    }
-    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N4)) {
         setInteractionMode(InteractionMode::AddRod);
     }
-    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N5)) {
+    else if (m_app->getEngine()->KeyDownEvent(ysKey::Code::N4)) {
         setInteractionMode(InteractionMode::Delete);
     }
 }
