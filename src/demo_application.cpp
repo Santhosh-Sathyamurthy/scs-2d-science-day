@@ -35,11 +35,11 @@ DemoApplication::DemoApplication() {
     m_showingMenu = false;
     m_menuSelection = 0;
 
-    m_background = ysColor::srgbiToLinear(0xFFFFFF);
-    m_foreground = ysColor::srgbiToLinear(0xFFFFFF);
+    m_background = ysColor::srgbiToLinear(0x0A0C0F);
+    m_foreground = ysColor::srgbiToLinear(0xF0E6FF);
     m_shadow = ysColor::srgbiToLinear(0x0E1012);
-    m_highlight1 = ysColor::srgbiToLinear(0xEF4545);
-    m_highlight2 = ysColor::srgbiToLinear(0xFFFFFF);
+    m_highlight1 = ysColor::srgbiToLinear(0xFF2D9F);
+    m_highlight2 = ysColor::srgbiToLinear(0x00F5C8);
 
     m_blobBackground = nullptr;
     m_blobForeground = nullptr;
