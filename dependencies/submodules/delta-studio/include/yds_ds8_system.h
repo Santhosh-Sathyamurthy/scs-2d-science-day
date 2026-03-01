@@ -4,7 +4,29 @@
 #include "yds_audio_system.h"
 #include "yds_window.h"
 
-#include <dsound.h>
+// DirectSound is Windows-only - guard all DirectSound-specific code
+#if defined(_WIN32) || defined(_WIN64)
+    #include <dsound.h>
+    #define YDS_DIRECTSOUND_AVAILABLE 1
+#else
+    #define YDS_DIRECTSOUND_AVAILABLE 0
+    // Provide stub types for non-Windows platforms to allow compilation
+    typedef void* LPGUID;
+    typedef const char* LPCTSTR;
+    typedef void* LPVOID;
+    typedef int BOOL;
+    #ifndef CALLBACK
+        #define CALLBACK
+    #endif
+    
+    // Stub GUID structure for non-Windows
+    struct GUID {
+        unsigned long  Data1;
+        unsigned short Data2;
+        unsigned short Data3;
+        unsigned char  Data4[8];
+    };
+#endif
 
 class ysDS8Device;
 

@@ -1,7 +1,7 @@
 #ifndef DELTA_BASIC_RIGID_BODY_SYSTEM_H
 #define DELTA_BASIC_RIGID_BODY_SYSTEM_H
 
-// Removed Windows.h — rigid body logic is pure C++
+// Removed Windows.h – rigid body logic is pure C++
 #include "platform.h"
 
 #include "delta_core.h"
@@ -32,8 +32,8 @@ namespace dphysics {
         RigidBodySystem();
         ~RigidBodySystem();
 
-        // Collision Detector Interface
-        CollisionDetector CollisionDetector;
+        // Collision Detector Interface (renamed member to avoid shadowing)
+        CollisionDetector Detector;
 
         void InitializeFrictionTable(
             int materialCount, float defaultStaticFriction, float defaultDynamicFriction);

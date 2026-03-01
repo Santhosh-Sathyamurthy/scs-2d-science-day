@@ -6,6 +6,9 @@
 
 #include "yds_window.h"
 
+#include <cstring>
+#include <cwchar>
+
 class ysAudioSource;
 class ysAudioBuffer;
 
@@ -21,7 +24,14 @@ public:
     ~ysAudioDevice();
 
     bool IsConnected() const { return m_connected; }
-    void SetDeviceName(const wchar_t *newName) { wcscpy_s(m_deviceName, MaxDeviceNameLength, newName); }
+    void SetDeviceName(const wchar_t *newName) { 
+        #if defined(_WIN32) || defined(_WIN64)
+            wcscpy_s(m_deviceName, MaxDeviceNameLength, newName);
+        #else
+            wcsncpy(m_deviceName, newName, MaxDeviceNameLength - 1);
+            m_deviceName[MaxDeviceNameLength - 1] = L'\0';
+        #endif
+    }
     const wchar_t *GetDeviceName() const { return m_deviceName; }
 
     virtual ysError CreateBuffer(const ysAudioParameters *parameters, SampleOffset size, ysAudioBuffer **buffer) = 0;

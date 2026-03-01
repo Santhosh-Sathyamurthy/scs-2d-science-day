@@ -6,6 +6,15 @@
 #include <stdlib.h>
 #include <new>
 
+// Platform-aware force inline macro
+#if defined(_MSC_VER)
+    #define YDS_FORCE_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+    #define YDS_FORCE_INLINE inline __attribute__((always_inline))
+#else
+    #define YDS_FORCE_INLINE inline
+#endif
+
 template<typename TYPE, int START_SIZE = 0, int ALIGNMENT = 1>
 class ysExpandingArray {
 public:
@@ -122,7 +131,7 @@ public:
 
     TYPE *GetBuffer() { return m_array; }
 
-    __forceinline TYPE &operator[](int index) {
+    YDS_FORCE_INLINE TYPE &operator[](int index) {
         return m_array[index];
     }
 

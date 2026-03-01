@@ -1,6 +1,7 @@
 #include "../include/yds_audio_file.h"
 
 #include "../include/yds_audio_buffer.h"
+#include <cstring>  // FIXED: Added for memcpy
 
 ysAudioFile::ysAudioFile() {
     m_format = AudioFormat::Undefined;
@@ -97,7 +98,7 @@ ysAudioFile::Error ysAudioFile::InitializeInternalBuffer(SampleOffset samples, b
         int copySamples = (m_bufferDataSamples < samples) ? m_bufferDataSamples : samples;
         int copySize = m_audioParameters.GetSizeFromSamples(copySamples);
 
-        if (copySize > 0) memcpy(newBuffer, m_buffer, copySize);
+        if (copySize > 0) std::memcpy(newBuffer, m_buffer, copySize);
     }
 
     // Delete original buffer

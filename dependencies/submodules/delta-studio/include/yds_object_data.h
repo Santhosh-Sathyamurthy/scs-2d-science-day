@@ -82,7 +82,7 @@ public:
         int ModelIndex;
         int ParentIndex;
         int ParentInstance;
-        ObjectType ObjectType;
+        ObjectType Type;  // FIXED: Renamed from 'ObjectType' to 'Type' to avoid shadowing
         int UsesBones;
         int SkeletonIndex;
     } m_objectInformation;

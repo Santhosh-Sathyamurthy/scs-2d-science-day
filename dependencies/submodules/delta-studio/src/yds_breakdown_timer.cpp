@@ -4,6 +4,8 @@
 #include "../include/yds_timing.h"
 
 #include <assert.h>
+#include <codecvt>
+#include <locale>
 
 ysBreakdownTimer::ysBreakdownTimer() {
     m_frameCount = 0;
@@ -73,7 +75,14 @@ ysBreakdownTimer::CreateChannel(const std::string &timerChannelName,
 void ysBreakdownTimer::OpenLogFile(const std::wstring &filename) {
     if (!m_enabled) { return; }
 
-    m_logFile.open(filename.c_str(), std::ios::out);
+    // Convert wstring to string for fstream::open on non-Windows platforms
+    #if defined(_WIN32) || defined(_WIN64)
+        m_logFile.open(filename.c_str(), std::ios::out);
+    #else
+        std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+        std::string narrowFilename = converter.to_bytes(filename);
+        m_logFile.open(narrowFilename.c_str(), std::ios::out);
+    #endif
 
     m_logFile << "Frame";
     const int n = GetChannelCount();

@@ -30,7 +30,8 @@ namespace dphysics {
         ~RigidBody();
 
         // Interfaces
-        CollisionGeometry CollisionGeometry;
+        // FIXED: Renamed from 'CollisionGeometry CollisionGeometry' to 'CollisionGeometry Geometry' to avoid name shadowing
+        CollisionGeometry Geometry;
         ysTransform Transform;
 
         void Integrate(float timeStep);
@@ -183,6 +184,6 @@ namespace dphysics {
         void *m_owner;
     };
 
-} /* namespace dbasic */
+} /* namespace dphysics */
 
 #endif /* DELTA_BASIC_RIGID_BODY_H */

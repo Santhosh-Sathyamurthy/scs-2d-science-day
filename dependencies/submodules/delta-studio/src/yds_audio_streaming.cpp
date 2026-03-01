@@ -2,6 +2,7 @@
 
 #include "../include/yds_audio_source.h"
 #include "../include/yds_audio_file.h"
+#include <cstring>
 
 ysStreamingAudio::ysStreamingAudio() : ysObject("ysStreamingAudio") {
     m_file = nullptr;

@@ -3,6 +3,9 @@
 #include "../include/yds_animation_interchange_file_reader_0_0.h"
 #include "../include/yds_animation_interchange_file_reader_0_1.h"
 
+#include <codecvt>
+#include <locale>
+
 ysAnimationInterchangeFile::ysAnimationInterchangeFile() {
     m_reader = nullptr;
     m_majorVersion = 0x0;
@@ -18,7 +21,15 @@ ysAnimationInterchangeFile::~ysAnimationInterchangeFile() {
 ysError ysAnimationInterchangeFile::Open(const wchar_t *fname) {
     YDS_ERROR_DECLARE("Open");
 
-    m_file.open(fname, std::ios::binary | std::ios::in | std::ios::out);
+    // Convert wstring to string for fstream::open on non-Windows platforms
+    #if defined(_WIN32) || defined(_WIN64)
+        m_file.open(fname, std::ios::binary | std::ios::in | std::ios::out);
+    #else
+        std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+        std::string narrowFilename = converter.to_bytes(fname);
+        m_file.open(narrowFilename.c_str(), std::ios::binary | std::ios::in | std::ios::out);
+    #endif
+    
     if (!m_file.is_open()) return YDS_ERROR_RETURN(ysError::CouldNotOpenFile);
 
     IdHeader idHeader;

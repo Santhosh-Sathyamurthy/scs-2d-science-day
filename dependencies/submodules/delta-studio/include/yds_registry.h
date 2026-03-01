@@ -3,6 +3,7 @@
 
 #include "yds_base.h"
 #include "yds_dynamic_array.h"
+#include <cstring>  // For memcpy
 
 template<typename TYPE, int START_SIZE = 0>
 class ysRegistry : public ysObject {
@@ -39,8 +40,9 @@ public:
         m_nObjects++;
     }
 
+    // FIXED: Changed return type from void to DYN_TYPE*
     template<typename DYN_TYPE>
-    void NewGeneric(DYN_TYPE *obj, int alignment = 0) {
+    DYN_TYPE *NewGeneric(DYN_TYPE *obj, int alignment = 0) {
         if (m_nObjects >= m_maxSize) Extend();
 
         m_array[m_nObjects] = static_cast<TYPE *>(obj);
@@ -95,7 +97,7 @@ public:
 protected:
     void Extend() {
         TYPE **newArray = new TYPE * [m_maxSize * 2];
-        memcpy(newArray, m_array, sizeof(TYPE *) * m_nObjects);
+        std::memcpy(newArray, m_array, sizeof(TYPE *) * m_nObjects);
 
         delete[] m_array;
 
@@ -105,7 +107,7 @@ protected:
 
     void Condense() {
         TYPE **newArray = new TYPE * [m_maxSize / 2];
-        memcpy(newArray, m_array, sizeof(TYPE *) * m_nObjects);
+        std::memcpy(newArray, m_array, sizeof(TYPE *) * m_nObjects);
 
         delete[] m_array;
 

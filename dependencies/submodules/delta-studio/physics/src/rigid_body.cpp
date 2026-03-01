@@ -174,7 +174,6 @@ void dphysics::RigidBody::AddAngularImpulseLocal(const ysVector &impulse) {
 }
 
 void dphysics::RigidBody::AddImpulseLocalSpace(const ysVector &impulse, const ysVector &localPoint) {
-    ysVector impulseWorld = Transform.LocalToParentDirection(impulse);
     ysVector delta = Transform.LocalToParentDirection(localPoint);
     m_impulseAccum = ysMath::Add(m_impulseAccum, impulse);
 
@@ -255,7 +254,6 @@ void dphysics::RigidBody::WriteInfo(std::fstream &target) {
     target << "<RigidBody>" << "\n";
 
     int collisionObjects = CollisionGeometry.GetNumObjects();
-    int count = 0;
     for (int i = 0; i < collisionObjects; ++i) {
         CollisionObject *object = CollisionGeometry.GetCollisionObject(i);
         if (object->GetMode() == CollisionObject::Mode::Fine) {

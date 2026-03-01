@@ -31,7 +31,7 @@ public:
     uint64_t GetFrameDuration_us();
 
     uint64_t GetTime();
-    unsigned __int64 GetClock();
+    uint64_t GetClock();  // FIXED: Changed from unsigned __int64 to uint64_t
 
     void SetPrecisionMode(Precision mode);
     Precision GetPrecisionMode() const { return m_precisionMode; }
@@ -54,8 +54,8 @@ protected:
     uint64_t m_lastFrameTimestamp;
     uint64_t m_lastFrameDuration;
 
-    unsigned long long m_lastFrameClockstamp;
-    unsigned long long m_lastFrameClockTicks;
+    uint64_t m_lastFrameClockstamp;  // FIXED: Changed from unsigned long long
+    uint64_t m_lastFrameClockTicks;  // FIXED: Changed from unsigned long long
 
     bool m_isPaused;
 

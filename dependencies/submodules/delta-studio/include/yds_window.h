@@ -33,7 +33,7 @@ public:
     InitializeWindow(ysWindow *parent, const wchar_t *title, WindowStyle style,
                      int x, int y, int width, int height, ysMonitor *monitor,
                      WindowState initialState,
-                     const ysVector &color = {0.0f, 0.0f, 0.0f, 1.0f});
+                     const ysVector &color);
     virtual ysError InitializeWindow(ysWindow *parent, const wchar_t *title,
                                      WindowStyle style, ysMonitor *monitor);
 
@@ -56,8 +56,8 @@ public:
     void SetMonitor(ysMonitor *monitor) { m_monitor = monitor; }
     ysMonitor *GetMonitor() const { return m_monitor; }
 
-    const int GetGameWidth() const;
-    const int GetGameHeight() const;
+    int GetGameWidth() const;
+    int GetGameHeight() const;
 
     int GetPositionX() const { return m_locationx; }
     int GetPositionY() const { return m_locationy; }
